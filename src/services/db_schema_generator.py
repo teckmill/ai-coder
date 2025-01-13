@@ -140,18 +140,15 @@ class DBSchemaGenerator(BaseService):
                 # Add foreign key constraints
                 for rel in schema.get("relationships", []):
                     if rel["from_table"] == table_name:
-                        foreign_key = (
-                            f"FOREIGN KEY ({rel['from_column']}) REFERENCES "
-                            f"{rel['to_table']}({rel['to_column']})"
-                        )
-                        foreign_keys.append(foreign_key)
+                        from_col = rel["from_column"]
+                        to_table = rel["to_table"]
+                        to_col = rel["to_column"]
+                        fk = f"FOREIGN KEY ({from_col}) REFERENCES {to_table}({to_col})"
+                        foreign_keys.append(fk)
                 
                 # Create table statement
-                create_table = (
-                    f"CREATE TABLE {table_name} (\n"
-                    f"    {',\n    '.join(columns + foreign_keys)}\n"
-                    f");"
-                )
+                table_body = ",\n    ".join(columns + foreign_keys)
+                create_table = f"CREATE TABLE {table_name} (\n    {table_body}\n);"
                 sql_statements.append(create_table)
             
             # Create indexes
@@ -183,9 +180,10 @@ class DBSchemaGenerator(BaseService):
             if orm_type not in ["sqlalchemy", "django", "mongoose"]:
                 raise ValueError(f"Unsupported ORM type: {orm_type}")
             
+            schema_json = json.dumps(schema, indent=2)
             prompt = (
                 f"Generate {orm_type} ORM models for this schema:\n\n"
-                f"{json.dumps(schema, indent=2)}\n\n"
+                f"{schema_json}\n\n"
                 "Please provide:\n"
                 "1. Model definitions\n"
                 "2. Relationships and foreign keys\n"
@@ -195,7 +193,6 @@ class DBSchemaGenerator(BaseService):
             )
             
             result = self._get_llm_suggestions(prompt)
-            
             return {
                 "models": result["code"],
                 "suggestions": result.get("suggestions", []),
