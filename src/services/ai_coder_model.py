@@ -228,7 +228,7 @@ class AiCoderModel:
     def _get_default_model_path(self) -> str:
         """Get the default path for model weights."""
         import os
-        return os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "ai-coder-v1")
+        return os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "ai_coder_v1")
     
     def _load_model(self) -> PreTrainedModel:
         """Load and configure the model with optimizations."""

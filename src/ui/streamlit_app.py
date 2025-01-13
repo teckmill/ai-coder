@@ -232,11 +232,11 @@ def main():
         # Model selection
         st.markdown("### Model Selection")
         model_options = {
-            "AI Coder v1 (Free)": "ai-coder-v1",
-            "GPT-4 Turbo": "gpt-4-turbo",
-            "GPT-4": "gpt-4",
-            "GPT-3.5 Turbo": "gpt-3.5-turbo",
-            "Claude-3": "claude-3"
+            "AI Coder v1 (Free)": "ai_coder_v1",
+            "GPT-4 Turbo": "gpt_4_turbo",
+            "GPT-4": "gpt_4",
+            "GPT-3.5 Turbo": "gpt_3_5_turbo",
+            "Claude-3": "claude_3"
         }
         selected_model = st.selectbox(
             "Choose a model",
