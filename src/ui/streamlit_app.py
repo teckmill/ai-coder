@@ -32,8 +32,30 @@ def get_ollama_path() -> Optional[str]:
     if ollama_in_path:
         logger.debug(f"Found Ollama in PATH: {ollama_in_path}")
         return ollama_in_path
+    
+    # Check if we're in a Docker/container environment
+    in_container = os.path.exists('/.dockerenv') or os.path.exists('/run/.containerenv')
+    logger.debug(f"Running in container: {in_container}")
+    
+    # If in container, Ollama should be accessed via host network
+    if in_container:
+        logger.info("Running in container - Ollama should be accessed via host network")
+        # We'll use the host network to access Ollama running on the host machine
+        # No need to find the binary, just verify the service is accessible
+        try:
+            # Try to connect to Ollama API
+            import requests
+            response = requests.get('http://localhost:11434/api/tags')
+            if response.status_code == 200:
+                logger.debug("Successfully connected to Ollama API")
+                return 'ollama'  # Return a placeholder since we can access the API
+            else:
+                logger.warning(f"Could not connect to Ollama API: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Error connecting to Ollama API: {e}")
+        return None
         
-    # Platform-specific paths
+    # Platform-specific paths for non-container environments
     if os.name == 'nt':  # Windows
         local_appdata = os.environ.get('LOCALAPPDATA', '')
         program_files = os.environ.get('PROGRAMFILES', '')
@@ -45,19 +67,6 @@ def get_ollama_path() -> Optional[str]:
             os.path.join(program_files, "Ollama", "ollama.exe"),
             os.path.join(program_files_x86, "Ollama", "ollama.exe") if program_files_x86 else None
         ]
-        
-        # Try running where.exe with full path on Windows
-        where_cmd = os.path.join(os.environ.get('SYSTEMROOT', r'C:\Windows'), 'System32', 'where.exe')
-        if os.path.isfile(where_cmd):
-            try:
-                result = subprocess.run([where_cmd, 'ollama'], capture_output=True, text=True)
-                if result.returncode == 0:
-                    path = result.stdout.strip().split('\n')[0]
-                    if os.path.isfile(path):
-                        logger.debug(f"Found Ollama using 'where' command: {path}")
-                        return path
-            except Exception as e:
-                logger.debug(f"Error running 'where ollama': {e}")
     else:  # Linux/Unix
         possible_paths = [
             "/usr/local/bin/ollama",
@@ -65,17 +74,6 @@ def get_ollama_path() -> Optional[str]:
             os.path.expanduser("~/.local/bin/ollama"),
             "/opt/ollama/ollama"
         ]
-        
-        # Try using which command on Unix
-        try:
-            result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
-            if result.returncode == 0:
-                path = result.stdout.strip()
-                if os.path.isfile(path):
-                    logger.debug(f"Found Ollama using 'which' command: {path}")
-                    return path
-        except Exception as e:
-            logger.debug(f"Error running 'which ollama': {e}")
     
     # Filter out None values
     possible_paths = [p for p in possible_paths if p]
