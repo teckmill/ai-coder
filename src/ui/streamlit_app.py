@@ -63,11 +63,11 @@ def main():
         st.subheader("Usage Limits")
         usage = st.session_state.usage_tracker.get_monthly_usage()
         for limit_name, limit_value in tier.limits.items():
-            if limit_value == float("inf"):
+            if limit_value == float("inf") or limit_value == 0:
                 st.write(f"✨ {limit_name.replace('_', ' ').title()}: Unlimited")
             else:
                 current_value = usage.get(limit_name, 0)
-                progress = min(1.0, current_value / limit_value)
+                progress = min(1.0, current_value / max(1, limit_value))  
                 st.write(f"{limit_name.replace('_', ' ').title()}")
                 st.progress(progress)
                 st.write(f"{current_value:,} / {limit_value:,}")
