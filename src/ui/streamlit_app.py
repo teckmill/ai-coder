@@ -314,16 +314,18 @@ def main():
         model_type = st.radio("Select Model Type", ["Free", "Premium"])
         
         # Get available models
-        available_models = CodeGenerator.get_available_models()
+        model_types = CodeGenerator.get_model_types()
         
         if model_type == "Free":
-            model_list = available_models["free"]
+            model_list = model_types["Free"]
         else:
-            model_list = available_models["premium"]
+            model_list = model_types["Premium"]
             st.info("Premium models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
             if api_key:
                 st.session_state.api_key = api_key
+            else:
+                st.session_state.api_key = None
         
         selected_model = st.selectbox("Select Model", model_list)
         
@@ -378,7 +380,7 @@ def main():
             return None
 
     # Load models
-    available_models = CodeGenerator.get_available_models()
+    model_types = CodeGenerator.get_model_types()
     
     # Header with glowing effect
     st.markdown("""
