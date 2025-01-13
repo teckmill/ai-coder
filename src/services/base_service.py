@@ -74,25 +74,27 @@ class BaseService:
         }
     }
 
-    def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
+    def __init__(self, model_name: str = "codellama"):
         """Initialize the service with a specific model."""
         self.model_name = model_name
-        self.api_key = api_key
-        self._init_model()
+        self.model_available = False
+        self.llm = None
 
     def _init_model(self):
         """Initialize the language model."""
         try:
             self.llm = Ollama(model=self.model_name)
+            self.model_available = True
             logger.info(f"Initialized {self.model_name} model")
         except Exception as e:
             logger.error(f"Error initializing {self.model_name}: {str(e)}")
+            self.model_available = False
             raise
 
     def set_model(self, model_name: str):
         """Change the current model."""
         if model_name not in self.MODELS:
-            raise ValueError(f"Unsupported model: {model_name}")
+            raise ValueError(f"Unknown model: {model_name}")
         
         self.model_name = model_name
         self._init_model()
@@ -104,12 +106,10 @@ class BaseService:
 
     async def _get_llm_suggestions(self, prompt: str) -> Dict:
         """Get suggestions from the language model."""
+        if not self.model_available:
+            raise RuntimeError("Model not available")
         try:
-            response = await self.llm.agenerate([prompt])
-            return {
-                "explanation": response.generations[0][0].text,
-                "model": self.model_name
-            }
+            return await self.llm.agenerate([prompt])
         except Exception as e:
-            logger.error(f"Error getting suggestions from {self.model_name}: {str(e)}")
+            logger.error(f"Error getting suggestions: {str(e)}")
             raise

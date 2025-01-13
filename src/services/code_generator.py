@@ -22,7 +22,8 @@ class CodeGenerator(BaseService):
     
     def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the code generator service."""
-        super().__init__(model_name=model_name, api_key=api_key)
+        super().__init__(model_name=model_name)
+        self.api_key = api_key
         self.initialize_model()
     
     def initialize_model(self):
@@ -30,17 +31,18 @@ class CodeGenerator(BaseService):
         try:
             if self.model_name in FREE_MODELS:
                 self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
+                self.model_available = True
             elif self.model_name in PREMIUM_MODELS:
                 if not self.api_key:
                     raise ValueError(f"API key required for premium model {self.model_name}")
                 if "gpt" in self.model_name:
                     self.llm = ChatOpenAI(model_name=self.model_name, temperature=0.1, 
                                         api_key=self.api_key)
+                    self.model_available = True
                 # Add support for other premium models here
             else:
                 raise ValueError(f"Unsupported model: {self.model_name}")
             
-            self.model_available = True
             logger.debug(f"Successfully initialized {self.model_name} model")
         except Exception as e:
             logger.error(f"Failed to initialize model: {str(e)}")
