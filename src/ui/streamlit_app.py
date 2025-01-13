@@ -2,6 +2,7 @@ import streamlit as st
 import logging
 import subprocess
 import shutil
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 import sys
@@ -24,9 +25,36 @@ from src.services.db_schema_generator import DBSchemaGenerator
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def get_ollama_path() -> Optional[str]:
+    """Get the path to Ollama executable on Windows."""
+    possible_paths = [
+        os.path.expandvars(r"%ProgramFiles%\Ollama\ollama.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Ollama\ollama.exe"),
+        os.path.expandvars(r"%LocalAppData%\Programs\Ollama\ollama.exe"),
+        shutil.which('ollama')
+    ]
+    
+    for path in possible_paths:
+        if path and os.path.isfile(path):
+            logger.debug(f"Found Ollama at: {path}")
+            return path
+    
+    logger.warning("Ollama not found in standard locations")
+    return None
+
 def is_ollama_installed() -> bool:
     """Check if Ollama is installed and available."""
-    return shutil.which('ollama') is not None
+    return get_ollama_path() is not None
+
+def run_ollama_command(command: List[str]) -> subprocess.CompletedProcess:
+    """Run an Ollama command with the full path."""
+    ollama_path = get_ollama_path()
+    if not ollama_path:
+        raise FileNotFoundError("Ollama executable not found")
+    
+    cmd = [ollama_path] + command[1:]
+    logger.debug(f"Running Ollama command: {cmd}")
+    return subprocess.run(cmd, capture_output=True, text=True)
 
 def check_ollama_models() -> List[str]:
     """Check which Ollama models are available locally."""
@@ -35,7 +63,7 @@ def check_ollama_models() -> List[str]:
         return []
         
     try:
-        result = subprocess.run(['ollama', 'list'], capture_output=True, text=True)
+        result = run_ollama_command(['ollama', 'list'])
         if result.returncode == 0:
             # Parse the output to get model names
             models = []
@@ -46,7 +74,7 @@ def check_ollama_models() -> List[str]:
             logger.debug(f"Found local models: {models}")
             return models
         else:
-            logger.warning("Failed to get Ollama models list")
+            logger.warning(f"Failed to get Ollama models list: {result.stderr}")
             return []
     except Exception as e:
         logger.error(f"Error checking Ollama models: {str(e)}")
@@ -57,10 +85,10 @@ def get_available_models(model_type: str) -> List[str]:
     try:
         if model_type == "Local":
             if not is_ollama_installed():
-                st.error("""Ollama is not installed. Please install it to use local models:
-                1. Visit https://ollama.ai/download
-                2. Download and install Ollama
-                3. Restart the app""")
+                st.error("""Ollama is not installed or not found in standard locations. Please:
+                1. Make sure Ollama is installed (https://ollama.ai/download)
+                2. Check if Ollama is running (you should see the Ollama icon in your system tray)
+                3. Try restarting Ollama and this app""")
                 return []
             
             available_models = check_ollama_models()
@@ -82,22 +110,20 @@ if 'selected_model' not in st.session_state:
 if 'services_initialized' not in st.session_state:
     st.session_state.services_initialized = False
 
-# Configure page
-st.set_page_config(
-    page_title="AI Auto-Coder",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Initialize services
 def initialize_services():
     try:
         logger.debug(f"Initializing services with model={st.session_state.selected_model}, has_api_key={bool(st.session_state.api_key)}")
         
         # Check if Ollama is installed for local models
-        if st.session_state.selected_model in LOCAL_MODELS and not is_ollama_installed():
-            raise ValueError("Ollama is not installed. Please install it to use local models.")
+        if st.session_state.selected_model in LOCAL_MODELS:
+            if not is_ollama_installed():
+                raise ValueError("Ollama is not installed or not found in standard locations.")
+            
+            # Try to verify Ollama is running
+            try:
+                check_ollama_models()
+            except Exception as e:
+                raise ValueError("Ollama is installed but may not be running. Please check your system tray.")
         
         # Initialize code generator with explicit api_key
         api_key = st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
@@ -384,15 +410,15 @@ def main():
         
         if model_type == "Local":
             if not is_ollama_installed():
-                st.error("""Ollama is not installed. To use local models:
-                1. Visit https://ollama.ai/download
-                2. Download and install Ollama
-                3. Restart the app""")
+                st.error("""Ollama is not installed or not found in standard locations. Please:
+                1. Make sure Ollama is installed (https://ollama.ai/download)
+                2. Check if Ollama is running (you should see the Ollama icon in your system tray)
+                3. Try restarting Ollama and this app""")
             elif not model_list:
                 st.warning("No local models found. Please make sure Ollama is running.")
                 try:
                     # Try to pull codellama
-                    subprocess.run(['ollama', 'pull', 'codellama'], check=True)
+                    run_ollama_command(['ollama', 'pull', 'codellama'])
                     st.success("Successfully installed codellama!")
                     model_list = get_available_models(model_type)
                 except Exception as e:
@@ -418,7 +444,7 @@ def main():
                 initialize_services()
         else:
             if model_type == "Local":
-                st.error("Please install Ollama to use local models.")
+                st.error("Please make sure Ollama is installed and running.")
             else:
                 st.error("No models available. Please check your setup.")
     
