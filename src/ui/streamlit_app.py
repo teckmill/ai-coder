@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 def get_ollama_path() -> Optional[str]:
     """Get the path to Ollama executable on Windows."""
     possible_paths = [
+        os.path.expandvars(r"%LocalAppData%\Programs\Ollama\ollama.exe"),  # Default Windows install location
         os.path.expandvars(r"%ProgramFiles%\Ollama\ollama.exe"),
         os.path.expandvars(r"%ProgramFiles(x86)%\Ollama\ollama.exe"),
-        os.path.expandvars(r"%LocalAppData%\Programs\Ollama\ollama.exe"),
-        shutil.which('ollama')
+        shutil.which('ollama')  # Check system PATH
     ]
     
     for path in possible_paths:
