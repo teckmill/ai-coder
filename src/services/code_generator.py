@@ -6,25 +6,13 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 from src.services.base_service import BaseService
+from src.config.models import LOCAL_MODELS, CLOUD_MODELS
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-
-# Define model configurations
-LOCAL_MODELS = {
-    "codellama": {"provider": "ollama", "name": "codellama"},
-    "llama2": {"provider": "ollama", "name": "llama2"},
-    "mistral": {"provider": "ollama", "name": "mistral"}
-}
-
-CLOUD_MODELS = {
-    "gpt-4": {"provider": "openai", "name": "gpt-4"},
-    "gpt-3.5-turbo": {"provider": "openai", "name": "gpt-3.5-turbo"},
-    "claude-2": {"provider": "anthropic", "name": "claude-2"}
-}
 
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
