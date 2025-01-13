@@ -193,7 +193,7 @@ def initialize_session_state():
         st.session_state.usage_tracker = UsageTracker(st.session_state.user_id)
 
     if "code_generator" not in st.session_state:
-        st.session_state.code_generator = CodeGenerator()
+        st.session_state.code_generator = CodeGenerator(user_id=st.session_state.user_id)
 
     if "code_analyzer" not in st.session_state:
         st.session_state.code_analyzer = CodeAnalyzer()
