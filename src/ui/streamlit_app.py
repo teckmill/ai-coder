@@ -9,6 +9,7 @@ from src.services.project_generator import ProjectGenerator
 from src.services.api_doc_generator import APIDocGenerator
 from src.services.performance_profiler import PerformanceProfiler
 from src.services.db_schema_generator import DBSchemaGenerator
+from src.services.pricing_manager import PricingManager
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -101,17 +102,16 @@ def render_api_key_section():
     with st.sidebar:
         st.markdown("### 🔐 Authentication")
         with st.expander("Configure API Key", expanded='api_key' not in st.session_state):
-            st.markdown("""
+            premium_details = PricingManager.get_premium_details()
+            
+            st.markdown(f"""
             <div class='premium-card'>
                 <div class="feature-icon">✨</div>
-                <h3>Premium Access</h3>
-                <p>Enter your OpenAI API key to unlock:</p>
-                <ul>
-                    <li>🔥 Latest GPT-4 Models</li>
-                    <li>💡 Advanced Code Generation</li>
-                    <li>⚡ Priority Processing</li>
-                    <li>📚 Extended Context Support</li>
-                </ul>
+                <h3>Premium Access - ${premium_details['price']}/month</h3>
+                <p>Enter your OpenAI API key to unlock all features:</p>
+                <div style="margin: 1rem 0;">
+                    {''.join(f'<div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;"><span>{f["icon"]}</span> <strong>{f["name"]}</strong></div>' for f in premium_details['features'])}
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -123,8 +123,11 @@ def render_api_key_section():
             )
             
             if api_key:
-                st.session_state.api_key = api_key
-                st.success("✅ API Key configured successfully!")
+                if PricingManager.is_valid_api_key(api_key):
+                    st.session_state.api_key = api_key
+                    st.success("✅ Premium access activated!")
+                else:
+                    st.error("❌ Invalid API key. Please check and try again.")
 
 def render_model_selection():
     """Render the model selection section."""

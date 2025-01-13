@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import os
 import logging
 import requests
@@ -10,6 +10,10 @@ from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 from src.services.base_service import BaseService
 from src.config.models import LOCAL_MODELS, CLOUD_MODELS
+import openai
+import anthropic
+from .usage_tracker import UsageTracker, ModelCosts
+from .pricing import PricingManager
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,7 +29,6 @@ class ModelProvider:
 class OpenAIProvider(ModelProvider):
     """Provider for OpenAI models."""
     def __init__(self, api_key: str, model: str = "gpt-4-turbo-preview"):
-        import openai
         self.client = openai.OpenAI(api_key=api_key)
         self.model = model
 
@@ -37,6 +40,21 @@ class OpenAIProvider(ModelProvider):
             max_tokens=kwargs.get('max_tokens', 2000)
         )
         return response.choices[0].message.content
+
+class AnthropicProvider(ModelProvider):
+    """Provider for Anthropic models."""
+    def __init__(self, api_key: str, model: str = "claude-3-opus-20240229"):
+        self.client = anthropic.Anthropic(api_key=api_key)
+        self.model = model
+
+    def generate(self, prompt: str, **kwargs) -> str:
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=kwargs.get('max_tokens', 2000),
+            temperature=kwargs.get('temperature', 0.7),
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text
 
 class OllamaProvider(ModelProvider):
     """Provider for Ollama models."""
@@ -93,13 +111,21 @@ class CodeGenerator(BaseService):
         "codellama": (OllamaProvider, {"requires_key": False}),
         "llama2": (OllamaProvider, {"requires_key": False}),
         "starcoder": (HuggingFaceProvider, {"requires_key": False, "model_name": "bigcode/starcoder"}),
-        "codegen": (HuggingFaceProvider, {"requires_key": False, "model_name": "Salesforce/codegen-16B-mono"})
+        "codegen": (HuggingFaceProvider, {"requires_key": False, "model_name": "Salesforce/codegen-16B-mono"}),
+        "claude-3-opus-20240229": (AnthropicProvider, {"requires_key": True}),
+        "claude-3-sonnet-20240229": (AnthropicProvider, {"requires_key": True}),
+        "claude-2.1": (AnthropicProvider, {"requires_key": True})
     }
 
-    def __init__(self, model_name: str = "gpt-4-turbo-preview", api_key: Optional[str] = None):
+    def __init__(self, user_id: str, tier: str = "pro", model_name: str = "gpt-4-turbo-preview", api_key: Optional[str] = None):
         """Initialize the code generator service."""
-        logger.debug(f"Initializing CodeGenerator with model={model_name}, has_api_key={bool(api_key)}")
-        super().__init__(model_name=model_name, api_key=api_key)
+        logger.debug(f"Initializing CodeGenerator with user_id={user_id}, tier={tier}, model={model_name}, has_api_key={bool(api_key)}")
+        self.user_id = user_id
+        self.tier = tier
+        self.model_name = model_name
+        self.api_key = api_key
+        self.usage_tracker = UsageTracker(user_id)
+        self.tier_info = PricingManager.get_tier_details(tier)
         self.provider = self._initialize_provider()
         self.model_available = True
     
@@ -119,6 +145,8 @@ class CodeGenerator(BaseService):
             return provider_class(model=self.model_name)
         elif provider_class == HuggingFaceProvider:
             return provider_class(model_name=config.get("model_name", "bigcode/starcoder"))
+        elif provider_class == AnthropicProvider:
+            return provider_class(api_key=self.api_key, model=self.model_name)
         
         raise ValueError(f"Unknown provider for model: {self.model_name}")
 
@@ -133,106 +161,76 @@ class CodeGenerator(BaseService):
     async def generate(self, prompt: str, language: str = "python") -> Dict:
         """Generate code based on the prompt using the selected model"""
         try:
-            if not self.model_available:
-                raise Exception("Model is not available. Please make sure it's installed and running.")
-                
-            template = """
-            You are an expert web developer specializing in modern, beautiful web design. Generate code based on the following prompt.
-            Language: {language}
-            Prompt: {prompt}
-            
-            Follow these guidelines:
-            1. Use modern HTML5 semantic elements
-            2. Include CSS with:
-               - Clean, modern typography
-               - Pleasing color schemes
-               - Responsive design
-               - Smooth transitions/animations
-               - Proper spacing and layout
-            3. Add meta tags for SEO and mobile responsiveness
-            4. Use CSS variables for consistent theming
-            5. Include helpful comments
-            6. Keep the code clean and maintainable
-            
-            If the prompt doesn't specify colors or styling, use an elegant modern design with:
-            - A clean sans-serif font (e.g., Inter, Roboto)
-            - A pleasing color palette
-            - Subtle shadows and rounded corners
-            - Proper whitespace and padding
-            - Smooth hover effects
-            
-            Provide your response in the following format:
-            CODE:
-            <code here>
-            EXPLANATION:
-            <explanation here>
+            # Check usage limits
+            exceeded_limits = self.usage_tracker.check_limits(self.tier_info["limits"])
+            if exceeded_limits:
+                return {
+                    "error": "Usage limits exceeded",
+                    "details": exceeded_limits,
+                    "overage_charges": PricingManager.calculate_overage_charges(
+                        self.tier, 
+                        self.usage_tracker.get_monthly_usage()
+                    )
+                }
+
+            # Estimate complexity and select model
+            complexity = self.usage_tracker.estimate_complexity(prompt)
+            selected_model = self.usage_tracker.get_smart_model_selection("code", complexity)
+
+            # Enhance prompt with language context
+            enhanced_prompt = f"""Generate {language} code for: {prompt}
+            Requirements:
+            - Only return the code, no explanations
+            - Include necessary imports
+            - Follow best practices for {language}
+            - Add brief comments for complex logic
             """
             
-            prompt_template = PromptTemplate(
-                input_variables=["language", "prompt"],
-                template=template
+            # Generate code using the provider
+            response = self.provider.generate(
+                enhanced_prompt,
+                model=selected_model,
+                temperature=0.7,
+                max_tokens=2000
             )
-            
-            formatted_prompt = prompt_template.format(
-                language=language,
-                prompt=prompt
+
+            # Track usage
+            input_tokens = len(enhanced_prompt.split())  # Simple approximation
+            output_tokens = len(response.split())
+            cost = self.usage_tracker.add_usage(
+                selected_model,
+                input_tokens,
+                output_tokens,
+                "code"
             )
+
+            # Get any usage alerts
+            alerts = self.usage_tracker.get_usage_alerts()
             
-            logger.debug("Sending request to model")
-            response = self.provider.generate(formatted_prompt)
-            logger.debug(f"Response received: {response}")
-            
-            # Parse response to extract code and explanation
-            parts = response.split("CODE:")
-            if len(parts) > 1:
-                code_and_explanation = parts[1].split("EXPLANATION:")
-                code = code_and_explanation[0].strip()
-                explanation = code_and_explanation[1].strip() if len(code_and_explanation) > 1 else ""
-                
-                logger.debug(f"Extracted code: {code}")
-                logger.debug(f"Extracted explanation: {explanation}")
-                
-                return {
-                    "code": code,
-                    "explanation": explanation
-                }
-            else:
-                logger.error("Failed to parse model response")
-                return {
-                    "code": "Error: Could not generate code",
-                    "explanation": "Failed to parse the model's response"
-                }
-                
-        except Exception as e:
-            logger.error(f"Code generation failed: {str(e)}", exc_info=True)
             return {
-                "code": f"Error: {str(e)}",
-                "explanation": "Code generation failed"
+                "code": response,
+                "language": language,
+                "model": selected_model,
+                "cost": cost,
+                "alerts": alerts
             }
 
-    def generate_code(self, description: str) -> str:
-        # Implement the logic to generate code based on the description
-        # For now, let's return a placeholder string
-        return f"Generated code for: {description}"
+        except Exception as e:
+            logger.error(f"Error generating code: {str(e)}")
+            raise
 
-    @staticmethod
-    def get_available_models(include_local: bool = False) -> Dict[str, Dict[str, Any]]:
-        """Get available models and their configurations."""
-        models = {
-            "cloud": {
-                "gpt-4-turbo-preview": "Latest & fastest GPT-4 model",
-                "gpt-4": "Most capable GPT-4 model",
-                "gpt-3.5-turbo-16k": "Extended context GPT-3.5",
-                "gpt-3.5-turbo": "Fast and efficient GPT-3.5"
-            }
+    def get_usage_stats(self) -> Dict:
+        """Get current usage statistics."""
+        monthly_usage = self.usage_tracker.get_monthly_usage()
+        alerts = self.usage_tracker.get_usage_alerts()
+        overage_charges = PricingManager.calculate_overage_charges(
+            self.tier,
+            monthly_usage
+        )
+
+        return {
+            "usage": monthly_usage,
+            "alerts": alerts,
+            "overage_charges": overage_charges,
+            "tier": self.tier_info
         }
-        
-        if include_local:
-            models["local"] = {
-                "codellama": "Meta's CodeLlama model (requires Ollama)",
-                "llama2": "Meta's Llama 2 model (requires Ollama)",
-                "starcoder": "BigCode's StarCoder (requires GPU)",
-                "codegen": "Salesforce CodeGen (requires GPU)"
-            }
-        
-        return models
