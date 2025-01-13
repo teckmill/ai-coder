@@ -8,8 +8,8 @@ from langchain_community.llms import Ollama
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
-from src.services.base_service import BaseService
 from src.config.models import LOCAL_MODELS, CLOUD_MODELS
+from src.services.base_service import BaseService
 import openai
 import anthropic
 from .usage_tracker import UsageTracker, ModelCosts
@@ -131,9 +131,19 @@ class CodeGenerator(BaseService):
     
     def _initialize_provider(self) -> ModelProvider:
         """Initialize the appropriate model provider."""
-        if self.model_name not in self.PROVIDER_MAP:
+        if self.model_name not in self.PROVIDER_MAP and self.model_name not in LOCAL_MODELS:
             raise ValueError(f"Unsupported model: {self.model_name}")
 
+        # Check if it's a local model
+        if self.model_name in LOCAL_MODELS:
+            model_config = LOCAL_MODELS[self.model_name]
+            if model_config["provider"] == "local":
+                model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), model_config["path"])
+                return AiCoderModel(model_path=model_path)
+            elif model_config["provider"] == "ollama":
+                return OllamaProvider(model=model_config["name"])
+
+        # Handle cloud models
         provider_class, config = self.PROVIDER_MAP[self.model_name]
         
         if config["requires_key"] and not self.api_key:
@@ -141,15 +151,8 @@ class CodeGenerator(BaseService):
 
         if provider_class == OpenAIProvider:
             return provider_class(api_key=self.api_key, model=self.model_name)
-        elif provider_class == OllamaProvider:
-            return provider_class(model=self.model_name)
-        elif provider_class == HuggingFaceProvider:
-            return provider_class(model_name=config.get("model_name", "bigcode/starcoder"))
         elif provider_class == AnthropicProvider:
             return provider_class(api_key=self.api_key, model=self.model_name)
-        elif provider_class == AiCoderModel:
-            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "ai_coder_v1")
-            return provider_class(model_path=model_path)
         
         raise ValueError(f"Unknown provider for model: {self.model_name}")
 
