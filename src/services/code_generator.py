@@ -13,14 +13,14 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Define available models
-AVAILABLE_MODELS = {
-    "free": ["codellama", "llama2", "mistral"],
-    "premium": ["gpt-4", "gpt-3.5-turbo", "claude-2"]
-}
-
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
+    
+    # Class-level constant for available models
+    AVAILABLE_MODELS = {
+        "free": ["codellama", "llama2", "mistral"],
+        "premium": ["gpt-4", "gpt-3.5-turbo", "claude-2"]
+    }
     
     def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the code generator service."""
@@ -32,9 +32,9 @@ class CodeGenerator(BaseService):
     def initialize_model(self):
         """Initialize the appropriate model based on model name."""
         try:
-            if self.model_name in AVAILABLE_MODELS["free"]:
+            if self.model_name in self.AVAILABLE_MODELS["free"]:
                 self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
-            elif self.model_name in AVAILABLE_MODELS["premium"]:
+            elif self.model_name in self.AVAILABLE_MODELS["premium"]:
                 if not self.api_key:
                     raise ValueError(f"API key required for premium model {self.model_name}")
                 if "gpt" in self.model_name:
@@ -51,10 +51,10 @@ class CodeGenerator(BaseService):
             self.model_available = False
             raise
 
-    @staticmethod
-    def get_available_models():
+    @classmethod
+    def get_available_models(cls):
         """Get the list of available models."""
-        return AVAILABLE_MODELS
+        return cls.AVAILABLE_MODELS
 
     async def generate(self, prompt: str, language: str = "python") -> Dict:
         """Generate code based on the prompt using the selected model"""

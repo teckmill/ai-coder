@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.base_service import BaseService
-from src.services.code_generator import CodeGenerator, AVAILABLE_MODELS
+from src.services.code_generator import CodeGenerator
 from src.services.code_analyzer import CodeAnalyzer
 from src.services.template_manager import TemplateManager
 from src.services.project_generator import ProjectGenerator
@@ -313,16 +313,19 @@ def main():
         # Model selection
         model_type = st.radio("Select Model Type", ["Free", "Premium"])
         
+        # Get available models
+        available_models = CodeGenerator.get_available_models()
+        
         if model_type == "Free":
-            available_models = AVAILABLE_MODELS["free"]
+            model_list = available_models["free"]
         else:
-            available_models = AVAILABLE_MODELS["premium"]
+            model_list = available_models["premium"]
             st.info("Premium models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
             if api_key:
                 st.session_state.api_key = api_key
         
-        selected_model = st.selectbox("Select Model", available_models)
+        selected_model = st.selectbox("Select Model", model_list)
         
         if selected_model != st.session_state.selected_model:
             st.session_state.selected_model = selected_model
@@ -375,7 +378,7 @@ def main():
             return None
 
     # Load models
-    available_models = BaseService.get_available_models()
+    available_models = CodeGenerator.get_available_models()
     
     # Header with glowing effect
     st.markdown("""
