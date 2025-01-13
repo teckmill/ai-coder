@@ -228,23 +228,22 @@ class AiCoderModel:
     
     def _get_default_model_path(self) -> str:
         """Get the default path for model weights."""
-        return "codellama/CodeLlama-34b-Python"  # Use CodeLlama as base model
+        return "src/models/ai-coder-v1"  # Use our custom model
     
     def _load_model(self) -> PreTrainedModel:
         """Load and configure the model with optimizations."""
         try:
-            config = AutoConfig.from_pretrained(self.model_path)
+            config = AiCoderConfig.from_pretrained(self.model_path)
             config.use_cache = True
             config.gradient_checkpointing = True
             config.use_memory_efficient_attention = True
             
             # Load the base model
-            model = AutoModelForCausalLM.from_pretrained(
+            model = AiCoderForCausalLM.from_pretrained(
                 self.model_path,
                 config=config,
                 torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto",
-                trust_remote_code=True
+                device_map="auto"
             )
             
             # Enable model parallelism if multiple GPUs are available

@@ -1,6 +1,6 @@
 {
     "model_name": "ai-coder-v1",
-    "model_type": "code-llm",
+    "model_type": "ai-coder-v1",
     "vocab_size": 100000,
     "n_positions": 32768,
     "n_ctx": 32768,
@@ -29,7 +29,7 @@
         "AiCoderForCausalLM"
     ],
     "tokenizer_class": "CodeTokenizer",
-    "tie_word_embeddings": false,
+    "tie_word_embeddings": true,
     "torch_dtype": "bfloat16",
     "transformers_version": "4.37.0",
     "flash_attention": true,
@@ -37,38 +37,47 @@
     "use_memory_efficient_attention": true,
     "parallel_attention": true,
     "learning_config": {
-        "online_learning": true,
-        "meta_learning": true,
-        "active_learning": true,
-        "knowledge_distillation": true,
-        "feedback_learning": {
+        "online_learning": {
+            "enabled": true,
+            "learning_rate": 0.0001,
             "batch_size": 32,
-            "learning_rate": 0.001,
-            "min_feedback_samples": 16,
-            "max_buffer_size": 1000
+            "max_steps": 1000,
+            "warmup_steps": 100
         },
         "meta_learning": {
-            "adaptation_rate": 0.01,
-            "meta_batch_size": 16,
-            "max_adaptations": 100
+            "enabled": true,
+            "inner_learning_rate": 0.001,
+            "outer_learning_rate": 0.0001,
+            "num_inner_steps": 5,
+            "num_outer_steps": 10
         },
         "active_learning": {
+            "enabled": true,
             "uncertainty_threshold": 0.8,
-            "query_batch_size": 8,
-            "max_queries_per_session": 3
+            "max_queries_per_session": 5,
+            "min_confidence_score": 0.6
         },
         "knowledge_distillation": {
-            "temperature": 1.0,
+            "enabled": true,
+            "temperature": 2.0,
             "alpha": 0.5,
-            "min_confidence": 0.7
+            "teacher_models": [
+                "gpt-4",
+                "claude-3"
+            ]
+        },
+        "feedback_learning": {
+            "enabled": true,
+            "feedback_buffer_size": 1000,
+            "min_feedback_samples": 50,
+            "update_interval": 100
         },
         "optimization": {
             "optimizer": "adamw",
             "weight_decay": 0.01,
-            "warmup_steps": 1000,
-            "max_grad_norm": 1.0,
-            "lr_scheduler": "cosine",
-            "num_cycles": 3
+            "learning_rate_scheduler": "cosine",
+            "warmup_ratio": 0.1,
+            "gradient_clip_val": 1.0
         }
     },
     "advanced_features": {

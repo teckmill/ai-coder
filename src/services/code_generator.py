@@ -110,10 +110,10 @@ class CodeGenerator(BaseService):
         "gpt-4": (OpenAIProvider, {"requires_key": True}),
         "gpt-3.5-turbo": (OpenAIProvider, {"requires_key": True}),
         "claude-3": (AnthropicProvider, {"requires_key": True}),
-        "codellama-34b": (AiCoderModel, {"requires_key": False})  # Our free model
+        "ai-coder-v1": (AiCoderModel, {"requires_key": False})  # Our free model
     }
     
-    def __init__(self, user_id: str, tier: str = "free", model_name: str = "codellama-34b", api_key: Optional[str] = None):
+    def __init__(self, user_id: str, tier: str = "free", model_name: str = "ai-coder-v1", api_key: Optional[str] = None):
         """Initialize the code generator service."""
         logger.debug(f"Initializing CodeGenerator with user_id={user_id}, tier={tier}, model={model_name}, has_api_key={bool(api_key)}")
         self.user_id = user_id
