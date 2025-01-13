@@ -22,9 +22,7 @@ class CodeGenerator(BaseService):
     
     def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the code generator service."""
-        super().__init__(model_name=model_name)
-        self.model_name = model_name
-        self.api_key = api_key
+        super().__init__(model_name=model_name, api_key=api_key)
         self.initialize_model()
     
     def initialize_model(self):

@@ -73,12 +73,13 @@ class BaseService:
             """
         }
     }
-    
-    def __init__(self, model_name: str = "codellama"):
+
+    def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the service with a specific model."""
         self.model_name = model_name
+        self.api_key = api_key
         self._init_model()
-    
+
     def _init_model(self):
         """Initialize the language model."""
         try:
@@ -87,7 +88,7 @@ class BaseService:
         except Exception as e:
             logger.error(f"Error initializing {self.model_name}: {str(e)}")
             raise
-    
+
     def set_model(self, model_name: str):
         """Change the current model."""
         if model_name not in self.MODELS:
@@ -95,12 +96,12 @@ class BaseService:
         
         self.model_name = model_name
         self._init_model()
-    
+
     @classmethod
     def get_available_models(cls) -> Dict:
         """Get information about available models."""
         return cls.MODELS
-    
+
     async def _get_llm_suggestions(self, prompt: str) -> Dict:
         """Get suggestions from the language model."""
         try:
