@@ -195,9 +195,7 @@ class PerformanceProfiler(BaseService):
             logger.error(f"Error optimizing performance: {str(e)}")
             raise
 
-    async def generate_performance_report(
-        self, code: str, profile_results: Dict, optimization_results: Dict
-    ) -> Dict:
+    async def generate_performance_report(self, code: str, profile_results: Dict, optimization_results: Dict) -> Dict:
         """Generate a comprehensive performance report."""
         try:
             prompt = f"""Create a performance report for this code:
@@ -227,9 +225,7 @@ class PerformanceProfiler(BaseService):
                 "report": result["explanation"],
                 "metrics": {
                     "original_performance": profile_results.get("total_time", 0),
-                    "estimated_improvement": optimization_results.get(
-                        "improvements", "N/A"
-                    ),
+                    "estimated_improvement": optimization_results.get("improvements", "N/A"),
                     "complexity_score": sum(self._analyze_complexity(code).values()),
                 },
             }

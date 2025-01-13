@@ -27,14 +27,9 @@ class AiCoderConfig(PretrainedConfig):
         pad_token_id=0,
         bos_token_id=1,
         eos_token_id=2,
-        **kwargs
+        **kwargs,
     ):
-        super().__init__(
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            **kwargs
-        )
+        super().__init__(pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
@@ -102,12 +97,10 @@ class AiCoderAttention(nn.Module):
 
             # Apply sliding window
             window_mask = torch.ones_like(attention_scores)
-            window_mask = torch.triu(
-                window_mask, diagonal=self.sliding_window
-            ) + torch.tril(window_mask, diagonal=-self.sliding_window)
-            attention_scores = attention_scores.masked_fill(
-                window_mask == 1, float("-inf")
+            window_mask = torch.triu(window_mask, diagonal=self.sliding_window) + torch.tril(
+                window_mask, diagonal=-self.sliding_window
             )
+            attention_scores = attention_scores.masked_fill(window_mask == 1, float("-inf"))
 
             attention_probs = nn.functional.softmax(attention_scores, dim=-1)
             attention_probs = self.dropout(attention_probs)
@@ -134,9 +127,7 @@ class AiCoderLayer(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, attention_mask=None):
-        attention_output = self.attention(
-            self.layernorm1(hidden_states), attention_mask
-        )
+        attention_output = self.attention(self.layernorm1(hidden_states), attention_mask)
         hidden_states = hidden_states + self.dropout(attention_output)
 
         layer_output = self.layernorm2(hidden_states)
@@ -174,21 +165,15 @@ class AiCoderModel(PreTrainedModel):
                     config.hidden_size,
                     padding_idx=config.pad_token_id,
                 ),
-                "position_embeddings": nn.Embedding(
-                    config.max_position_embeddings, config.hidden_size
-                ),
-                "token_type_embeddings": nn.Embedding(
-                    config.type_vocab_size, config.hidden_size
-                ),
+                "position_embeddings": nn.Embedding(config.max_position_embeddings, config.hidden_size),
+                "token_type_embeddings": nn.Embedding(config.type_vocab_size, config.hidden_size),
             }
         )
         self.layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         # Initialize transformer layers
-        self.layers = nn.ModuleList(
-            [AiCoderLayer(config) for _ in range(config.num_hidden_layers)]
-        )
+        self.layers = nn.ModuleList([AiCoderLayer(config) for _ in range(config.num_hidden_layers)])
 
         # Initialize the weights
         self.apply(self._init_weights)
@@ -202,27 +187,16 @@ class AiCoderModel(PreTrainedModel):
     def set_input_embeddings(self, value):
         self.embeddings["word_embeddings"] = value
 
-    def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        **kwargs
-    ):
+    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, **kwargs):
         input_shape = input_ids.size()
         batch_size, seq_length = input_shape
 
         if attention_mask is None:
             attention_mask = torch.ones(input_shape, device=input_ids.device)
         if token_type_ids is None:
-            token_type_ids = torch.zeros(
-                input_shape, dtype=torch.long, device=input_ids.device
-            )
+            token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
         if position_ids is None:
-            position_ids = torch.arange(
-                seq_length, dtype=torch.long, device=input_ids.device
-            )
+            position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
             position_ids = position_ids.unsqueeze(0).expand(input_shape)
 
         # Get embeddings
@@ -238,17 +212,13 @@ class AiCoderModel(PreTrainedModel):
         # Prepare attention mask
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
         extended_attention_mask = extended_attention_mask.to(dtype=self.dtype)
-        extended_attention_mask = (1.0 - extended_attention_mask) * torch.finfo(
-            self.dtype
-        ).min
+        extended_attention_mask = (1.0 - extended_attention_mask) * torch.finfo(self.dtype).min
 
         # Process through layers
         hidden_states = embeddings
         for layer in self.layers:
             if self.gradient_checkpointing and self.training:
-                layer_outputs = torch.utils.checkpoint.checkpoint(
-                    layer, hidden_states, extended_attention_mask
-                )
+                layer_outputs = torch.utils.checkpoint.checkpoint(layer, hidden_states, extended_attention_mask)
             else:
                 layer_outputs = layer(hidden_states, extended_attention_mask)
             hidden_states = layer_outputs
@@ -294,20 +264,14 @@ class AiCoderForCausalLM(PreTrainedModel):
         self.lm_head = new_embeddings
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        labels=None,
-        **kwargs
+        self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, labels=None, **kwargs
     ):
         hidden_states = self.ai_coder(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
-            **kwargs
+            **kwargs,
         )
 
         lm_logits = self.lm_head(hidden_states)
@@ -319,8 +283,6 @@ class AiCoderForCausalLM(PreTrainedModel):
             shift_labels = labels[..., 1:].contiguous()
 
             loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
-            )
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         return {"loss": loss, "logits": lm_logits} if loss is not None else lm_logits

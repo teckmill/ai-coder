@@ -243,9 +243,7 @@ async def delete_template(name: str):
 async def generate_template(request: TemplateGenerateRequest):
     """Generate a new template using AI."""
     try:
-        return await template_manager.generate_template(
-            description=request.description, language=request.language
-        )
+        return await template_manager.generate_template(description=request.description, language=request.language)
     except Exception as e:
         logger.error(f"Error generating template: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

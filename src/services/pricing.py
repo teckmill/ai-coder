@@ -628,10 +628,7 @@ class PricingManager:
     @staticmethod
     def is_valid_api_key(api_key: str) -> bool:
         """Check if the API key is valid and subscription is active."""
-        return bool(
-            api_key
-            and (api_key.startswith("sk-") or api_key.startswith("ant-"))  # OpenAI
-        )  # Anthropic
+        return bool(api_key and (api_key.startswith("sk-") or api_key.startswith("ant-")))  # OpenAI  # Anthropic
 
     @classmethod
     def calculate_overage_charges(cls, tier: str, usage: Dict) -> Dict:
@@ -644,19 +641,13 @@ class PricingManager:
 
         # Request overages
         if usage["total_requests"] > tier_info.limits["monthly_requests"]:
-            extra_requests = (
-                usage["total_requests"] - tier_info.limits["monthly_requests"]
-            )
-            charges["request_overage"] = (
-                extra_requests * tier_info.overage_rates["requests"]
-            )
+            extra_requests = usage["total_requests"] - tier_info.limits["monthly_requests"]
+            charges["request_overage"] = extra_requests * tier_info.overage_rates["requests"]
 
         # Token overages
         if usage["total_tokens"] > tier_info.limits["monthly_tokens"]:
             extra_tokens = usage["total_tokens"] - tier_info.limits["monthly_tokens"]
-            charges["token_overage"] = (extra_tokens / 1000) * tier_info.overage_rates[
-                "tokens"
-            ]
+            charges["token_overage"] = (extra_tokens / 1000) * tier_info.overage_rates["tokens"]
 
         charges["total"] = charges["request_overage"] + charges["token_overage"]
         return charges

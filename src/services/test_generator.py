@@ -55,9 +55,7 @@ class TestGenerator(BaseService):
             }
             return components
         except Exception as e:
-            logger.error(
-                f"Error in testable components analysis: {str(e)}", exc_info=True
-            )
+            logger.error(f"Error in testable components analysis: {str(e)}", exc_info=True)
             return {}
 
     def _get_testable_functions(self, tree: ast.AST) -> List[Dict]:
@@ -95,11 +93,7 @@ class TestGenerator(BaseService):
         for arg in node.args.args:
             param_info = {
                 "name": arg.arg,
-                "type": (
-                    self._get_annotation_name(arg.annotation)
-                    if arg.annotation
-                    else None
-                ),
+                "type": (self._get_annotation_name(arg.annotation) if arg.annotation else None),
                 "has_default": any(d for d in node.args.defaults),
             }
             params.append(param_info)

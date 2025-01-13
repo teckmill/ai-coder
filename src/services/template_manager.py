@@ -40,9 +40,7 @@ class TemplateManager(BaseService):
         except Exception as e:
             logger.error(f"Error saving templates: {str(e)}")
 
-    def list_templates(
-        self, language: Optional[str] = None, tags: Optional[List[str]] = None
-    ) -> Dict[str, List[Dict]]:
+    def list_templates(self, language: Optional[str] = None, tags: Optional[List[str]] = None) -> Dict[str, List[Dict]]:
         """List all templates, optionally filtered by language and tags."""
         try:
             templates = self._load_templates()
@@ -51,11 +49,7 @@ class TemplateManager(BaseService):
                 templates = [t for t in templates if t.get("language") == language]
 
             if tags:
-                templates = [
-                    t
-                    for t in templates
-                    if any(tag in t.get("tags", []) for tag in tags)
-                ]
+                templates = [t for t in templates if any(tag in t.get("tags", []) for tag in tags)]
 
             return {"templates": templates}
 
@@ -146,9 +140,7 @@ class TemplateManager(BaseService):
             logger.error(f"Error deleting template: {str(e)}")
             return False
 
-    async def generate_template(
-        self, description: str, language: str = "python"
-    ) -> Dict:
+    async def generate_template(self, description: str, language: str = "python") -> Dict:
         """Generate a template from description using AI."""
         try:
             prompt = f"""Generate a code template based on this description:

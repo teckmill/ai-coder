@@ -57,17 +57,11 @@ class CodeAnalyzer(BaseService):
             # Get AI suggestions if available
             if self.model_available:
                 logger.debug("Getting AI suggestions")
-                ai_suggestions = await self._get_ai_suggestions(
-                    formatted_code, analysis_output
-                )
+                ai_suggestions = await self._get_ai_suggestions(formatted_code, analysis_output)
                 logger.debug(f"AI suggestions: {ai_suggestions}")
             else:
-                logger.warning(
-                    "AI suggestions not available - Ollama model not initialized"
-                )
-                ai_suggestions = (
-                    "AI suggestions not available - Ollama model not initialized"
-                )
+                logger.warning("AI suggestions not available - Ollama model not initialized")
+                ai_suggestions = "AI suggestions not available - Ollama model not initialized"
 
             result = {
                 "formatted_code": formatted_code,
@@ -156,9 +150,7 @@ class CodeAnalyzer(BaseService):
                         }
                     )
 
-        logger.debug(
-            f"Function complexity check complete. Found {len(messages)} issues"
-        )
+        logger.debug(f"Function complexity check complete. Found {len(messages)} issues")
         return messages
 
     def _check_variable_names(self, tree: ast.AST) -> List[Dict]:
@@ -277,23 +269,14 @@ class CodeAnalyzer(BaseService):
 
             # Format analysis issues
             analysis_issues_text = "\n".join(
-                [
-                    f"- {msg['type']}: {msg['message']} (line {msg['line']})"
-                    for msg in analysis_output
-                ]
+                [f"- {msg['type']}: {msg['message']} (line {msg['line']})" for msg in analysis_output]
             )
 
-            prompt_template = PromptTemplate(
-                input_variables=["code", "analysis_issues"], template=template
-            )
+            prompt_template = PromptTemplate(input_variables=["code", "analysis_issues"], template=template)
 
             formatted_prompt = prompt_template.format(
                 code=code,
-                analysis_issues=(
-                    analysis_issues_text
-                    if analysis_issues_text
-                    else "No issues found in analysis."
-                ),
+                analysis_issues=(analysis_issues_text if analysis_issues_text else "No issues found in analysis."),
             )
 
             logger.debug("Sending request to Ollama")

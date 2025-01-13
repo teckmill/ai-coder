@@ -89,10 +89,7 @@ class SecurityScanner(BaseService):
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Attribute):
-                    if (
-                        node.func.attr
-                        in self.COMMON_VULNERABILITIES["python"]["sql_injection"]
-                    ):
+                    if node.func.attr in self.COMMON_VULNERABILITIES["python"]["sql_injection"]:
                         vulnerabilities.append(
                             {
                                 "type": "sql_injection",
@@ -110,15 +107,8 @@ class SecurityScanner(BaseService):
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 if isinstance(node.func, (ast.Name, ast.Attribute)):
-                    func_name = (
-                        node.func.id
-                        if isinstance(node.func, ast.Name)
-                        else node.func.attr
-                    )
-                    if (
-                        func_name
-                        in self.COMMON_VULNERABILITIES["python"]["command_injection"]
-                    ):
+                    func_name = node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+                    if func_name in self.COMMON_VULNERABILITIES["python"]["command_injection"]:
                         vulnerabilities.append(
                             {
                                 "type": "command_injection",
@@ -136,12 +126,7 @@ class SecurityScanner(BaseService):
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Attribute):
-                    if (
-                        node.func.attr
-                        in self.COMMON_VULNERABILITIES["python"][
-                            "insecure_deserialization"
-                        ]
-                    ):
+                    if node.func.attr in self.COMMON_VULNERABILITIES["python"]["insecure_deserialization"]:
                         vulnerabilities.append(
                             {
                                 "type": "insecure_deserialization",
@@ -159,10 +144,7 @@ class SecurityScanner(BaseService):
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
-                    if (
-                        node.func.id
-                        in self.COMMON_VULNERABILITIES["python"]["path_traversal"]
-                    ):
+                    if node.func.id in self.COMMON_VULNERABILITIES["python"]["path_traversal"]:
                         vulnerabilities.append(
                             {
                                 "type": "path_traversal",
@@ -180,10 +162,7 @@ class SecurityScanner(BaseService):
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for name in node.names:
-                    if (
-                        name.name
-                        in self.COMMON_VULNERABILITIES["python"]["weak_crypto"]
-                    ):
+                    if name.name in self.COMMON_VULNERABILITIES["python"]["weak_crypto"]:
                         vulnerabilities.append(
                             {
                                 "type": "weak_crypto",

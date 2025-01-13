@@ -31,9 +31,7 @@ class CodeMigrator(BaseService):
             },
         }
 
-    async def analyze_code(
-        self, code: str, source_version: str, target_version: str
-    ) -> Dict:
+    async def analyze_code(self, code: str, source_version: str, target_version: str) -> Dict:
         """Analyze code for migration issues."""
         try:
             prompt = f"""Analyze this code for migration from {source_version} to {target_version}:
@@ -85,9 +83,7 @@ class CodeMigrator(BaseService):
             logger.error(f"Error analyzing code: {str(e)}")
             raise
 
-    async def migrate_code(
-        self, code: str, source_version: str, target_version: str
-    ) -> Dict:
+    async def migrate_code(self, code: str, source_version: str, target_version: str) -> Dict:
         """Migrate code to target version."""
         try:
             # First analyze the code
@@ -156,9 +152,7 @@ class CodeMigrator(BaseService):
             logger.error(f"Error migrating code: {str(e)}")
             raise
 
-    async def generate_migration_guide(
-        self, source_version: str, target_version: str, features: List[str]
-    ) -> Dict:
+    async def generate_migration_guide(self, source_version: str, target_version: str, features: List[str]) -> Dict:
         """Generate a migration guide for specific features."""
         try:
             prompt = f"""Create a migration guide from {source_version} to {target_version} 

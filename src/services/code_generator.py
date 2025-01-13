@@ -102,9 +102,7 @@ class HuggingFaceProvider(ModelProvider):
             device_map=device,
             torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         )
-        self.generator = pipeline(
-            "text-generation", model=self.model, tokenizer=self.tokenizer, device=device
-        )
+        self.generator = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, device=device)
 
     def generate(self, prompt: str, **kwargs) -> str:
         response = self.generator(
@@ -154,19 +152,14 @@ class CodeGenerator(BaseService):
 
     def _initialize_provider(self) -> ModelProvider:
         """Initialize the appropriate model provider."""
-        if (
-            self.model_name not in self.PROVIDER_MAP
-            and self.model_name not in LOCAL_MODELS
-        ):
+        if self.model_name not in self.PROVIDER_MAP and self.model_name not in LOCAL_MODELS:
             raise ValueError(f"Unsupported model: {self.model_name}")
 
         # Check if it's a local model
         if self.model_name in LOCAL_MODELS:
             model_config = LOCAL_MODELS[self.model_name]
             if model_config["provider"] == "local":
-                model_path = os.path.join(
-                    os.path.dirname(os.path.dirname(__file__)), model_config["path"]
-                )
+                model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), model_config["path"])
                 return AiCoderModel(model_path=model_path)
             elif model_config["provider"] == "ollama":
                 return OllamaProvider(model=model_config["name"])
@@ -182,9 +175,7 @@ class CodeGenerator(BaseService):
         elif provider_class == AnthropicProvider:
             return provider_class(api_key=self.api_key, model=self.model_name)
         elif provider_class == AiCoderModel:
-            model_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "models/ai_coder_v1"
-            )
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models/ai_coder_v1")
             return provider_class(model_path=model_path)
 
         raise ValueError(f"Unknown provider for model: {self.model_name}")
@@ -212,9 +203,7 @@ class CodeGenerator(BaseService):
 
             # Estimate complexity and select model
             complexity = self.usage_tracker.estimate_complexity(prompt)
-            selected_model = self.usage_tracker.get_smart_model_selection(
-                "code", complexity
-            )
+            selected_model = self.usage_tracker.get_smart_model_selection("code", complexity)
 
             # Enhance prompt with language context
             enhanced_prompt = f"""Generate {language} code for: {prompt}
@@ -226,16 +215,12 @@ class CodeGenerator(BaseService):
             """
 
             # Generate code using the provider
-            response = self.provider.generate(
-                enhanced_prompt, model=selected_model, temperature=0.7, max_tokens=2000
-            )
+            response = self.provider.generate(enhanced_prompt, model=selected_model, temperature=0.7, max_tokens=2000)
 
             # Track usage
             input_tokens = len(enhanced_prompt.split())  # Simple approximation
             output_tokens = len(response.split())
-            cost = self.usage_tracker.add_usage(
-                selected_model, input_tokens, output_tokens, "code"
-            )
+            cost = self.usage_tracker.add_usage(selected_model, input_tokens, output_tokens, "code")
 
             # Get any usage alerts
             alerts = self.usage_tracker.get_usage_alerts()
@@ -256,9 +241,7 @@ class CodeGenerator(BaseService):
         """Get current usage statistics."""
         monthly_usage = self.usage_tracker.get_monthly_usage()
         alerts = self.usage_tracker.get_usage_alerts()
-        overage_charges = self.pricing_manager.calculate_overage_charges(
-            self.tier, monthly_usage
-        )
+        overage_charges = self.pricing_manager.calculate_overage_charges(self.tier, monthly_usage)
 
         return {
             "usage": monthly_usage,

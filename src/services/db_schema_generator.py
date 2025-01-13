@@ -85,9 +85,7 @@ class DBSchemaGenerator(BaseService):
                 if line.endswith(":"):
                     if current_section and current_content:
                         try:
-                            schema[current_section] = json.loads(
-                                "\n".join(current_content)
-                            )
+                            schema[current_section] = json.loads("\n".join(current_content))
                         except json.JSONDecodeError:
                             schema[current_section] = "\n".join(current_content)
                     current_section = line[:-1].lower()
@@ -110,10 +108,7 @@ class DBSchemaGenerator(BaseService):
     def generate_sql(self, schema: Dict, database_type: str) -> str:
         """Generate SQL statements from schema."""
         try:
-            if (
-                database_type not in self.supported_databases
-                or database_type == "mongodb"
-            ):
+            if database_type not in self.supported_databases or database_type == "mongodb":
                 raise ValueError(f"SQL generation not supported for {database_type}")
 
             sql_statements = []
@@ -163,9 +158,7 @@ class DBSchemaGenerator(BaseService):
                 table_name = index["table"]
                 column_name = index["column"]
                 index_name = f"idx_{table_name}_{column_name}"
-                create_index = (
-                    f"CREATE INDEX {index_name} ON {table_name} ({column_name});"
-                )
+                create_index = f"CREATE INDEX {index_name} ON {table_name} ({column_name});"
                 sql_statements.append(create_index)
 
             # Insert sample data

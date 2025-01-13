@@ -40,9 +40,7 @@ class UsagePatternAnalyzer:
                     language_success[lang]["total"] += 1
 
         return {
-            "most_used": dict(
-                sorted(language_usage.items(), key=lambda x: x[1], reverse=True)
-            ),
+            "most_used": dict(sorted(language_usage.items(), key=lambda x: x[1], reverse=True)),
             "success_rates": {
                 lang: {
                     "rate": stats["success"] / stats["total"] * 100,
@@ -81,9 +79,7 @@ class UsagePatternAnalyzer:
         for model, stats in model_stats.items():
             if stats["requests"] > 0:
                 stats["avg_response_time"] = stats["total_time"] / stats["requests"]
-                stats["success_rate"] = (
-                    stats["success_rate"] / stats["requests"]
-                ) * 100
+                stats["success_rate"] = (stats["success_rate"] / stats["requests"]) * 100
                 stats["avg_tokens_per_request"] = stats["tokens"] / stats["requests"]
                 stats["avg_cost_per_request"] = stats["cost"] / stats["requests"]
 
@@ -120,15 +116,9 @@ class UsagePatternAnalyzer:
             result[feature] = {
                 "total_uses": stats["total_uses"],
                 "unique_users": len(stats["unique_users"]),
-                "avg_duration": (
-                    stats["total_duration"] / stats["total_uses"]
-                    if stats["total_uses"] > 0
-                    else 0
-                ),
+                "avg_duration": (stats["total_duration"] / stats["total_uses"] if stats["total_uses"] > 0 else 0),
                 "success_rate": (
-                    (stats["successful_uses"] / stats["total_uses"] * 100)
-                    if stats["total_uses"] > 0
-                    else 0
+                    (stats["successful_uses"] / stats["total_uses"] * 100) if stats["total_uses"] > 0 else 0
                 ),
             }
 
@@ -165,12 +155,8 @@ class UsageAnalytics:
         recent_events = [e for e in self.events if e.timestamp >= cutoff]
 
         return {
-            "language_insights": self.pattern_analyzer.analyze_language_preferences(
-                recent_events
-            ),
-            "model_performance": self.pattern_analyzer.analyze_model_performance(
-                recent_events
-            ),
+            "language_insights": self.pattern_analyzer.analyze_language_preferences(recent_events),
+            "model_performance": self.pattern_analyzer.analyze_model_performance(recent_events),
             "feature_usage": self.pattern_analyzer.analyze_feature_usage(recent_events),
             "usage_patterns": self._analyze_usage_patterns(recent_events),
             "cost_analysis": self._analyze_costs(recent_events),
@@ -196,23 +182,15 @@ class UsageAnalytics:
             # Track session lengths
             if current_session != event.session_id:
                 if session_start:
-                    session_length = (
-                        event.timestamp - session_start
-                    ).total_seconds() / 60
+                    session_length = (event.timestamp - session_start).total_seconds() / 60
                     session_lengths.append(session_length)
                 current_session = event.session_id
                 session_start = event.timestamp
 
         return {
-            "peak_hours": dict(
-                sorted(hourly_usage.items(), key=lambda x: x[1], reverse=True)[:5]
-            ),
-            "busy_days": dict(
-                sorted(daily_usage.items(), key=lambda x: x[1], reverse=True)
-            ),
-            "avg_session_length": (
-                sum(session_lengths) / len(session_lengths) if session_lengths else 0
-            ),
+            "peak_hours": dict(sorted(hourly_usage.items(), key=lambda x: x[1], reverse=True)[:5]),
+            "busy_days": dict(sorted(daily_usage.items(), key=lambda x: x[1], reverse=True)),
+            "avg_session_length": (sum(session_lengths) / len(session_lengths) if session_lengths else 0),
             "total_sessions": len(set(e.session_id for e in events)),
         }
 
@@ -237,9 +215,7 @@ class UsageAnalytics:
             "cost_by_model": dict(model_costs),
             "cost_by_feature": dict(feature_costs),
             "total_cost": sum(daily_costs.values()),
-            "avg_daily_cost": (
-                sum(daily_costs.values()) / len(daily_costs) if daily_costs else 0
-            ),
+            "avg_daily_cost": (sum(daily_costs.values()) / len(daily_costs) if daily_costs else 0),
         }
 
     def _calculate_productivity_metrics(self, events: List[AnalyticsEvent]) -> Dict:
@@ -261,25 +237,12 @@ class UsageAnalytics:
                     code_quality_scores.append(event.data["quality_score"])
 
         return {
-            "success_rate": (
-                (successful_generations / code_generations * 100)
-                if code_generations > 0
-                else 0
-            ),
-            "avg_generation_time": (
-                total_time / code_generations if code_generations > 0 else 0
-            ),
-            "tokens_per_generation": (
-                total_tokens / code_generations if code_generations > 0 else 0
-            ),
-            "avg_code_quality": (
-                sum(code_quality_scores) / len(code_quality_scores)
-                if code_quality_scores
-                else 0
-            ),
+            "success_rate": ((successful_generations / code_generations * 100) if code_generations > 0 else 0),
+            "avg_generation_time": (total_time / code_generations if code_generations > 0 else 0),
+            "tokens_per_generation": (total_tokens / code_generations if code_generations > 0 else 0),
+            "avg_code_quality": (sum(code_quality_scores) / len(code_quality_scores) if code_quality_scores else 0),
             "total_generations": code_generations,
-            "time_saved_estimate": total_time
-            * 3,  # Assuming each generation saves 3x the time
+            "time_saved_estimate": total_time * 3,  # Assuming each generation saves 3x the time
         }
 
     def get_recommendations(self) -> List[Dict]:

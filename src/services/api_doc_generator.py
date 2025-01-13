@@ -27,9 +27,7 @@ class APIDocGenerator(BaseService):
 
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
-                    decorators = [
-                        d for d in node.decorator_list if isinstance(d, ast.Call)
-                    ]
+                    decorators = [d for d in node.decorator_list if isinstance(d, ast.Call)]
                     for decorator in decorators:
                         if isinstance(decorator.func, ast.Attribute):
                             if decorator.func.attr in [
@@ -79,9 +77,7 @@ class APIDocGenerator(BaseService):
             logger.error(f"Error parsing OpenAPI spec: {str(e)}")
             raise
 
-    async def generate_api_documentation(
-        self, source_files: List[str], output_format: str = "markdown"
-    ) -> Dict:
+    async def generate_api_documentation(self, source_files: List[str], output_format: str = "markdown") -> Dict:
         """Generate API documentation from source files."""
         try:
             # Collect API information
@@ -194,9 +190,7 @@ class APIDocGenerator(BaseService):
                         "name": param["name"],
                         "in": "query",  # Default to query, could be path/header/body
                         "required": True,
-                        "schema": {
-                            "type": "string"  # Default to string, could parse actual type
-                        },
+                        "schema": {"type": "string"},  # Default to string, could parse actual type
                     }
                     path_item[api["method"].lower()]["parameters"].append(parameter)
 

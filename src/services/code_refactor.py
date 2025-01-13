@@ -104,16 +104,12 @@ class CodeRefactor:
         for line in ai_output.split("\n"):
             if line.strip().startswith(("- ", "* ", "1. ")):
                 if current_suggestion:
-                    suggestions.append(
-                        {"type": "refactor", "message": current_suggestion.strip()}
-                    )
+                    suggestions.append({"type": "refactor", "message": current_suggestion.strip()})
                 current_suggestion = line.strip().lstrip("- *123456789. ")
             elif current_suggestion and line.strip():
                 current_suggestion += " " + line.strip()
 
         if current_suggestion:
-            suggestions.append(
-                {"type": "refactor", "message": current_suggestion.strip()}
-            )
+            suggestions.append({"type": "refactor", "message": current_suggestion.strip()})
 
         return suggestions

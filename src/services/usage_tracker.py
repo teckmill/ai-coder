@@ -70,9 +70,7 @@ class UsageTracker:
         self.usage_records: List[UsageRecord] = []
         self.last_reset = datetime.now()
 
-    def add_usage(
-        self, model: str, input_tokens: int, output_tokens: int, request_type: str
-    ) -> float:
+    def add_usage(self, model: str, input_tokens: int, output_tokens: int, request_type: str) -> float:
         """Add a usage record and return the cost."""
         cost = ModelCosts.calculate_cost(model, input_tokens, output_tokens)
 
@@ -90,9 +88,7 @@ class UsageTracker:
 
     def get_monthly_usage(self) -> Dict:
         """Get usage statistics for the current month."""
-        month_start = datetime.now().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
+        month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         monthly_records = [r for r in self.usage_records if r.timestamp >= month_start]
 
         total_cost = sum(r.cost for r in monthly_records)
@@ -104,9 +100,7 @@ class UsageTracker:
             if record.model not in usage_by_model:
                 usage_by_model[record.model] = {"requests": 0, "tokens": 0, "cost": 0}
             usage_by_model[record.model]["requests"] += 1
-            usage_by_model[record.model]["tokens"] += (
-                record.input_tokens + record.output_tokens
-            )
+            usage_by_model[record.model]["tokens"] += record.input_tokens + record.output_tokens
             usage_by_model[record.model]["cost"] += record.cost
 
         return {
@@ -121,14 +115,10 @@ class UsageTracker:
         monthly_usage = self.get_monthly_usage()
 
         exceeded_limits = {}
-        if monthly_usage["total_requests"] >= plan_limits.get(
-            "monthly_requests", float("inf")
-        ):
+        if monthly_usage["total_requests"] >= plan_limits.get("monthly_requests", float("inf")):
             exceeded_limits["requests"] = True
 
-        if monthly_usage["total_tokens"] >= plan_limits.get(
-            "monthly_tokens", float("inf")
-        ):
+        if monthly_usage["total_tokens"] >= plan_limits.get("monthly_tokens", float("inf")):
             exceeded_limits["tokens"] = True
 
         if monthly_usage["total_cost"] >= plan_limits.get("monthly_cost", float("inf")):
@@ -136,9 +126,7 @@ class UsageTracker:
 
         return exceeded_limits
 
-    def get_smart_model_selection(
-        self, request_type: str, code_complexity: float
-    ) -> str:
+    def get_smart_model_selection(self, request_type: str, code_complexity: float) -> str:
         """Select the most cost-effective model based on request type and complexity."""
         if request_type == "code":
             if code_complexity > 0.8:
@@ -172,9 +160,7 @@ class UsageTracker:
             "performance",
         ]
 
-        count = sum(
-            1 for indicator in complexity_indicators if indicator in prompt.lower()
-        )
+        count = sum(1 for indicator in complexity_indicators if indicator in prompt.lower())
         return min(1.0, count / len(complexity_indicators))
 
     def get_usage_alerts(self) -> List[Dict]:

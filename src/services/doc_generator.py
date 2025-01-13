@@ -66,13 +66,9 @@ class DocGenerator(BaseService):
             if isinstance(node, ast.ClassDef):
                 class_info = {
                     "name": node.name,
-                    "methods": [
-                        m.name for m in node.body if isinstance(m, ast.FunctionDef)
-                    ],
+                    "methods": [m.name for m in node.body if isinstance(m, ast.FunctionDef)],
                     "docstring": ast.get_docstring(node) or "",
-                    "decorators": [
-                        d.id for d in node.decorator_list if isinstance(d, ast.Name)
-                    ],
+                    "decorators": [d.id for d in node.decorator_list if isinstance(d, ast.Name)],
                 }
                 classes.append(class_info)
         return classes
@@ -87,9 +83,7 @@ class DocGenerator(BaseService):
                     "args": self._get_function_args(node),
                     "docstring": ast.get_docstring(node) or "",
                     "returns": self._get_return_info(node),
-                    "decorators": [
-                        d.id for d in node.decorator_list if isinstance(d, ast.Name)
-                    ],
+                    "decorators": [d.id for d in node.decorator_list if isinstance(d, ast.Name)],
                 }
                 functions.append(func_info)
         return functions
@@ -100,11 +94,7 @@ class DocGenerator(BaseService):
         for arg in node.args.args:
             arg_info = {
                 "name": arg.arg,
-                "annotation": (
-                    arg.annotation.id
-                    if arg.annotation and hasattr(arg.annotation, "id")
-                    else None
-                ),
+                "annotation": (arg.annotation.id if arg.annotation and hasattr(arg.annotation, "id") else None),
             }
             args.append(arg_info)
         return args
