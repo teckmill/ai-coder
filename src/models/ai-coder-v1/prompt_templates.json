@@ -1,0 +1,59 @@
+{
+    "code_generation": {
+        "template": "You are AI Coder, a specialized coding assistant. Generate {language} code for the following task:\n\nTask: {task_description}\n\nRequirements:\n{requirements}\n\nPlease provide clean, efficient, and well-documented code that follows best practices.\n\nCode:",
+        "examples": [
+            {
+                "task_description": "Create a function to sort a list using quicksort",
+                "language": "python",
+                "requirements": [
+                    "Handle empty lists",
+                    "Support custom comparison functions",
+                    "Use type hints"
+                ],
+                "output": "def quicksort(arr: list, key=lambda x: x) -> list:\n    \"\"\"Sort a list using the quicksort algorithm.\n    \n    Args:\n        arr: List to sort\n        key: Function to get comparison key\n        \n    Returns:\n        Sorted list\n    \"\"\"\n    if not arr:\n        return []\n    \n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if key(x) < key(pivot)]\n    middle = [x for x in arr if key(x) == key(pivot)]\n    right = [x for x in arr if key(x) > key(pivot)]\n    \n    return quicksort(left, key) + middle + quicksort(right, key)"
+            }
+        ]
+    },
+    "code_analysis": {
+        "template": "Analyze the following code for potential issues and improvements:\n\nCode:\n{code}\n\nFocus on:\n- Code quality and readability\n- Performance optimizations\n- Security concerns\n- Best practices and patterns\n\nAnalysis:",
+        "examples": [
+            {
+                "code": "def process_data(data):\n    result = []\n    for i in range(len(data)):\n        if data[i] > 0:\n            result.append(data[i] * 2)",
+                "output": "Code Quality:\n- Use list comprehension for better readability\n- Add type hints\n- Add docstring\n\nPerformance:\n- Avoid using range(len()) with lists\n- Consider using list comprehension for better performance\n\nBest Practices:\n- Add return statement\n- Add error handling for invalid inputs"
+            }
+        ]
+    },
+    "code_refactor": {
+        "template": "Refactor the following code to improve its quality:\n\nOriginal Code:\n{code}\n\nFocus Areas:\n{focus_areas}\n\nProvide the refactored code and explain the improvements made.\n\nRefactored Code:",
+        "examples": [
+            {
+                "code": "def calc(x,y,op):\n    if op=='add':\n        return x+y\n    if op=='sub':\n        return x-y\n    if op=='mul':\n        return x*y\n    if op=='div':\n        return x/y",
+                "focus_areas": [
+                    "Code structure",
+                    "Error handling",
+                    "Documentation"
+                ],
+                "output": "from typing import Union\n\ndef calculate(x: Union[int, float], y: Union[int, float], operation: str) -> Union[int, float]:\n    \"\"\"Perform basic arithmetic operations.\n    \n    Args:\n        x: First number\n        y: Second number\n        operation: Operation to perform ('add', 'sub', 'mul', 'div')\n        \n    Returns:\n        Result of the operation\n        \n    Raises:\n        ValueError: If operation is invalid\n        ZeroDivisionError: If dividing by zero\n    \"\"\"\n    operations = {\n        'add': lambda a, b: a + b,\n        'sub': lambda a, b: a - b,\n        'mul': lambda a, b: a * b,\n        'div': lambda a, b: a / b if b != 0 else raise ZeroDivisionError('Cannot divide by zero')\n    }\n    \n    if operation not in operations:\n        raise ValueError(f'Invalid operation. Must be one of: {list(operations.keys())}')\n    \n    return operations[operation](x, y)"
+            }
+        ]
+    },
+    "error_handling": {
+        "template": "The following code has an error:\n\nCode:\n{code}\n\nError:\n{error}\n\nProvide a detailed explanation of the error and how to fix it:",
+        "examples": [
+            {
+                "code": "def get_value(dict, key):\n    return dict[key]",
+                "error": "KeyError: 'name'",
+                "output": "The error occurs because the key 'name' doesn't exist in the dictionary. To fix this:\n\n1. Use dict.get() method with a default value\n2. Add error handling with try-except\n3. Check if key exists before accessing\n\nHere's the fixed code:\n\ndef get_value(data: dict, key: str, default=None):\n    return data.get(key, default)"
+            }
+        ]
+    },
+    "documentation": {
+        "template": "Generate documentation for the following code:\n\nCode:\n{code}\n\nInclude:\n- Function/class purpose\n- Parameters\n- Return values\n- Examples\n- Notes/warnings\n\nDocumentation:",
+        "examples": [
+            {
+                "code": "def retry(func, max_attempts=3, delay=1):\n    for attempt in range(max_attempts):\n        try:\n            return func()\n        except Exception as e:\n            if attempt == max_attempts - 1:\n                raise\n            time.sleep(delay)",
+                "output": "```python\ndef retry(func: Callable, max_attempts: int = 3, delay: float = 1) -> Any:\n    \"\"\"Retry a function multiple times before giving up.\n    \n    Args:\n        func: Function to retry\n        max_attempts: Maximum number of attempts (default: 3)\n        delay: Delay between attempts in seconds (default: 1)\n        \n    Returns:\n        Result of the function if successful\n        \n    Raises:\n        Exception: If all attempts fail, raises the last exception\n        \n    Example:\n        >>> def unstable_api():\n        ...     if random.random() < 0.5:\n        ...         raise ConnectionError()\n        ...     return 'success'\n        ...\n        >>> result = retry(unstable_api, max_attempts=5, delay=0.1)\n    \n    Note:\n        The function will sleep between attempts, so it may take\n        (max_attempts - 1) * delay seconds to complete in the worst case.\n    \"\"\"\n```"
+            }
+        ]
+    }
+}

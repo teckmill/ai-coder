@@ -14,6 +14,7 @@ import openai
 import anthropic
 from .usage_tracker import UsageTracker, ModelCosts
 from .pricing import PricingManager
+from .ai_coder_model import AiCoderModel
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -117,7 +118,7 @@ class CodeGenerator(BaseService):
         "claude-2.1": (AnthropicProvider, {"requires_key": True})
     }
 
-    def __init__(self, user_id: str, tier: str = "pro", model_name: str = "gpt-4-turbo-preview", api_key: Optional[str] = None):
+    def __init__(self, user_id: str, tier: str = "pro", model_name: str = "ai-coder-v1", api_key: Optional[str] = None):
         """Initialize the code generator service."""
         logger.debug(f"Initializing CodeGenerator with user_id={user_id}, tier={tier}, model={model_name}, has_api_key={bool(api_key)}")
         self.user_id = user_id
@@ -131,8 +132,11 @@ class CodeGenerator(BaseService):
     
     def _initialize_provider(self) -> ModelProvider:
         """Initialize the appropriate model provider."""
-        if self.model_name not in self.PROVIDER_MAP:
+        if self.model_name not in self.PROVIDER_MAP and self.model_name != "ai-coder-v1":
             raise ValueError(f"Unsupported model: {self.model_name}")
+
+        if self.model_name == "ai-coder-v1":
+            return AiCoderModel()
 
         provider_class, config = self.PROVIDER_MAP[self.model_name]
         

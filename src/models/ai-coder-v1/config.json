@@ -1,0 +1,88 @@
+{
+    "model_name": "ai-coder-v1",
+    "model_type": "code-llm",
+    "vocab_size": 100000,
+    "n_positions": 32768,
+    "n_ctx": 32768,
+    "n_embd": 8192,
+    "n_layer": 80,
+    "n_head": 64,
+    "n_kv_head": 8,
+    "rotary_dim": 128,
+    "activation_function": "swiglu",
+    "layer_norm_epsilon": 1e-05,
+    "initializer_range": 0.02,
+    "use_cache": true,
+    "rope_scaling": {
+        "type": "dynamic",
+        "factor": 4.0
+    },
+    "sliding_window": 4096,
+    "attention_config": {
+        "type": "multi_query",
+        "head_dim": 128,
+        "kv_heads": 8,
+        "sliding_window": 4096,
+        "attention_dropout": 0.1
+    },
+    "architectures": [
+        "AiCoderForCausalLM"
+    ],
+    "tokenizer_class": "CodeTokenizer",
+    "tie_word_embeddings": false,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.37.0",
+    "flash_attention": true,
+    "gradient_checkpointing": true,
+    "use_memory_efficient_attention": true,
+    "parallel_attention": true,
+    "learning_config": {
+        "online_learning": true,
+        "meta_learning": true,
+        "active_learning": true,
+        "knowledge_distillation": true,
+        "feedback_learning": {
+            "batch_size": 32,
+            "learning_rate": 0.001,
+            "min_feedback_samples": 16,
+            "max_buffer_size": 1000
+        },
+        "meta_learning": {
+            "adaptation_rate": 0.01,
+            "meta_batch_size": 16,
+            "max_adaptations": 100
+        },
+        "active_learning": {
+            "uncertainty_threshold": 0.8,
+            "query_batch_size": 8,
+            "max_queries_per_session": 3
+        },
+        "knowledge_distillation": {
+            "temperature": 1.0,
+            "alpha": 0.5,
+            "min_confidence": 0.7
+        },
+        "optimization": {
+            "optimizer": "adamw",
+            "weight_decay": 0.01,
+            "warmup_steps": 1000,
+            "max_grad_norm": 1.0,
+            "lr_scheduler": "cosine",
+            "num_cycles": 3
+        }
+    },
+    "advanced_features": {
+        "code_completion": true,
+        "type_inference": true,
+        "semantic_analysis": true,
+        "refactoring": true,
+        "bug_detection": true,
+        "security_analysis": true,
+        "performance_optimization": true,
+        "style_checking": true,
+        "documentation_generation": true,
+        "test_generation": true,
+        "multi_language_support": true,
+        "framework_detection": true
+    }
+}

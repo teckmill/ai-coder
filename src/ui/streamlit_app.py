@@ -30,19 +30,53 @@ def local_css():
         
         /* User message */
         .user-message {
-            background-color: #f7f7f8;
-            padding: 1rem;
+            background-color: #343541;
+            color: #ECECF1;
+            padding: 1.5rem;
             margin: 1rem 0;
             border-radius: 0.5rem;
         }
         
         /* Assistant message */
         .assistant-message {
-            background-color: white;
-            padding: 1rem;
+            background-color: #444654;
+            color: #ECECF1;
+            padding: 1.5rem;
             margin: 1rem 0;
             border-radius: 0.5rem;
             border-left: 4px solid #19c37d;
+        }
+        
+        /* Welcome message */
+        .welcome-message {
+            background-color: #444654;
+            color: #ECECF1;
+            padding: 2rem;
+            margin: 2rem auto;
+            border-radius: 1rem;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        .welcome-message h1 {
+            color: #19c37d;
+            margin-bottom: 1.5rem;
+        }
+        
+        .welcome-message ul {
+            list-style: none;
+            padding: 0;
+            margin: 1.5rem 0;
+        }
+        
+        .welcome-message li {
+            margin: 0.75rem 0;
+            font-size: 1.1rem;
+        }
+        
+        .welcome-message p {
+            color: #ECECF1;
+            font-size: 1.1rem;
         }
         
         /* Code blocks */
@@ -61,11 +95,12 @@ def local_css():
         
         /* Features */
         .feature-card {
-            background-color: white;
+            background-color: #343541;
+            color: #ECECF1;
             padding: 1rem;
             margin: 0.5rem 0;
             border-radius: 0.5rem;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #4d4d4d;
         }
         
         .feature-icon {
@@ -80,8 +115,8 @@ def local_css():
             left: 0;
             right: 0;
             padding: 1rem;
-            background-color: white;
-            border-top: 1px solid #e5e5e5;
+            background-color: #343541;
+            border-top: 1px solid #4d4d4d;
         }
         
         /* Model selector */
@@ -89,12 +124,49 @@ def local_css():
             margin-bottom: 1rem;
             padding: 0.5rem;
             border-radius: 0.5rem;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #4d4d4d;
+            background-color: #343541;
+            color: #ECECF1;
         }
         
         /* Progress bars */
         .stProgress > div > div > div {
             background-color: #19c37d;
+        }
+
+        /* Override Streamlit's theme */
+        .stApp {
+            background-color: #343541;
+            color: #ECECF1;
+        }
+
+        .stTextArea > div > div > textarea {
+            background-color: #444654;
+            color: #ECECF1;
+            border: 1px solid #4d4d4d;
+        }
+
+        .stTextArea > div > div > textarea:focus {
+            box-shadow: 0 0 0 2px #19c37d;
+        }
+
+        .stButton > button {
+            background-color: #19c37d;
+            color: white;
+            border: none;
+        }
+
+        .stButton > button:hover {
+            background-color: #15a76c;
+        }
+
+        .sidebar .stButton > button {
+            background-color: #444654;
+            border: 1px solid #4d4d4d;
+        }
+
+        .sidebar .stButton > button:hover {
+            background-color: #515262;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -157,13 +229,21 @@ def main():
     with st.sidebar:
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         
-        # Model Selection
-        st.markdown("### 🤖 Model")
-        model = st.selectbox(
-            "",
-            ["GPT-4 Turbo", "GPT-4", "GPT-3.5 Turbo", "Claude-3"],
-            key="model"
+        # Model selection
+        st.markdown("### Model Selection")
+        model_options = {
+            "AI Coder v1 (Free)": "ai-coder-v1",
+            "GPT-4 Turbo": "gpt-4-turbo",
+            "GPT-4": "gpt-4",
+            "GPT-3.5 Turbo": "gpt-3.5-turbo",
+            "Claude-3": "claude-3"
+        }
+        selected_model = st.selectbox(
+            "Choose a model",
+            options=list(model_options.keys()),
+            index=0  # Set AI Coder as default
         )
+        st.session_state.model = model_options[selected_model]
         
         # Current Plan
         st.markdown("### 💎 Current Plan")
@@ -214,7 +294,7 @@ def main():
     # Display welcome message if no messages
     if not st.session_state.messages:
         st.markdown("""
-        <div class="assistant-message" style="text-align: center">
+        <div class="welcome-message">
             <h1>👋 Welcome to AI Coder!</h1>
             <p>I'm your AI coding assistant. I can help you with:</p>
             <ul>
