@@ -134,7 +134,7 @@ def display_sidebar():
     # Current Plan
     st.sidebar.markdown("### 💎 Current Plan")
     selected_tier = st.sidebar.selectbox(
-        "",
+        "Select Tier",
         options=list(PricingManager.PRICING_TIERS.keys()),
         format_func=lambda x: PricingManager.PRICING_TIERS[x].name,
     )
