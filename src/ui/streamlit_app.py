@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.base_service import BaseService
-from src.services.code_generator import CodeGenerator
+from src.services.code_generator import CodeGenerator, AVAILABLE_MODELS
 from src.services.code_analyzer import CodeAnalyzer
 from src.services.template_manager import TemplateManager
 from src.services.project_generator import ProjectGenerator
@@ -314,9 +314,9 @@ def main():
         model_type = st.radio("Select Model Type", ["Free", "Premium"])
         
         if model_type == "Free":
-            available_models = CodeGenerator.AVAILABLE_MODELS["free"]
+            available_models = AVAILABLE_MODELS["free"]
         else:
-            available_models = CodeGenerator.AVAILABLE_MODELS["premium"]
+            available_models = AVAILABLE_MODELS["premium"]
             st.info("Premium models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
             if api_key:
