@@ -74,7 +74,7 @@ class BaseService:
         }
     }
 
-    def __init__(self, model_name: str = "codellama"):
+    def __init__(self, model_name: str = "codellama", **kwargs):
         """Initialize the service with a specific model."""
         self.model_name = model_name
         self.model_available = False

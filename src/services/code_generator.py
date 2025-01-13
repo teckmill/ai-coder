@@ -16,11 +16,11 @@ load_dotenv()
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
-    def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
+    def __init__(self, model_name: str = "codellama", **kwargs):
         """Initialize the code generator service."""
-        logger.debug(f"Initializing CodeGenerator with model={model_name}, has_api_key={bool(api_key)}")
-        super().__init__(model_name=model_name)
-        self.api_key = api_key
+        logger.debug(f"Initializing CodeGenerator with model={model_name}, kwargs={kwargs}")
+        super().__init__(model_name=model_name, **kwargs)
+        self.api_key = kwargs.get('api_key')
         self.initialize_model()
     
     def initialize_model(self):
