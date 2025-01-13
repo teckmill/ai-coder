@@ -1,0 +1,16 @@
+[theme]
+primaryColor = "#00ADB5"  # Cyan accent
+backgroundColor = "#222831"  # Dark background
+secondaryBackgroundColor = "#393E46"  # Slightly lighter dark
+textColor = "#EEEEEE"  # Light text
+font = "sans serif"
+
+[server]
+enableXsrfProtection = false
+enableCORS = false
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+level = "info"
