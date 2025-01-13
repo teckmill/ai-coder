@@ -226,6 +226,69 @@ class AiCoderModel:
             temperature=self.config.distillation_temperature
         )
     
+    def _get_default_model_path(self) -> str:
+        """Get the default path for model weights."""
+        return "codellama/CodeLlama-34b-Python"  # Use CodeLlama as base model
+    
+    def _load_model(self) -> PreTrainedModel:
+        """Load and configure the model with optimizations."""
+        try:
+            config = AutoConfig.from_pretrained(self.model_path)
+            config.use_cache = True
+            config.gradient_checkpointing = True
+            config.use_memory_efficient_attention = True
+            
+            # Load the base model
+            model = AutoModelForCausalLM.from_pretrained(
+                self.model_path,
+                config=config,
+                torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto",
+                trust_remote_code=True
+            )
+            
+            # Enable model parallelism if multiple GPUs are available
+            if torch.cuda.device_count() > 1:
+                model = torch.nn.DataParallel(model)
+            
+            model.to(self.device)
+            return model
+            
+        except Exception as e:
+            logger.error(f"Error loading model: {str(e)}")
+            raise
+    
+    def _load_tokenizer(self) -> PreTrainedTokenizer:
+        """Load and configure the tokenizer."""
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                self.model_path,
+                trust_remote_code=True,
+                padding_side="left"
+            )
+            
+            # Add special tokens for code
+            special_tokens = {
+                "additional_special_tokens": [
+                    "<code>", "</code>",
+                    "<python>", "</python>",
+                    "<javascript>", "</javascript>",
+                    "<error>", "</error>",
+                    "<suggestion>", "</suggestion>"
+                ]
+            }
+            tokenizer.add_special_tokens(special_tokens)
+            
+            # Ensure padding token exists
+            if tokenizer.pad_token is None:
+                tokenizer.pad_token = tokenizer.eos_token
+            
+            return tokenizer
+            
+        except Exception as e:
+            logger.error(f"Error loading tokenizer: {str(e)}")
+            raise
+    
     def _load_feedback_learner(self):
         """Load the feedback learning component."""
         return FeedbackLearner(

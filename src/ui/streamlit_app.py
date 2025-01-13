@@ -232,7 +232,7 @@ def main():
         # Model selection
         st.markdown("### Model Selection")
         model_options = {
-            "AI Coder v1 (Free)": "ai-coder-v1",
+            "CodeLlama-34B (Free)": "codellama-34b",
             "GPT-4 Turbo": "gpt-4-turbo",
             "GPT-4": "gpt-4",
             "GPT-3.5 Turbo": "gpt-3.5-turbo",
@@ -241,7 +241,7 @@ def main():
         selected_model = st.selectbox(
             "Choose a model",
             options=list(model_options.keys()),
-            index=0  # Set AI Coder as default
+            index=0  # Set CodeLlama as default
         )
         st.session_state.model = model_options[selected_model]
         

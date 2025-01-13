@@ -102,41 +102,37 @@ class HuggingFaceProvider(ModelProvider):
         return response[0]['generated_text'][len(prompt):]
 
 class CodeGenerator(BaseService):
-    """Service for generating code based on natural language descriptions."""
+    """Service for generating code using AI models."""
     
+    # Model providers and their configurations
     PROVIDER_MAP = {
-        "gpt-4-turbo-preview": (OpenAIProvider, {"requires_key": True}),
+        "gpt-4-turbo": (OpenAIProvider, {"requires_key": True}),
         "gpt-4": (OpenAIProvider, {"requires_key": True}),
-        "gpt-3.5-turbo-16k": (OpenAIProvider, {"requires_key": True}),
         "gpt-3.5-turbo": (OpenAIProvider, {"requires_key": True}),
-        "codellama": (OllamaProvider, {"requires_key": False}),
-        "llama2": (OllamaProvider, {"requires_key": False}),
-        "starcoder": (HuggingFaceProvider, {"requires_key": False, "model_name": "bigcode/starcoder"}),
-        "codegen": (HuggingFaceProvider, {"requires_key": False, "model_name": "Salesforce/codegen-16B-mono"}),
-        "claude-3-opus-20240229": (AnthropicProvider, {"requires_key": True}),
-        "claude-3-sonnet-20240229": (AnthropicProvider, {"requires_key": True}),
-        "claude-2.1": (AnthropicProvider, {"requires_key": True})
+        "claude-3": (AnthropicProvider, {"requires_key": True}),
+        "codellama-34b": (AiCoderModel, {"requires_key": False})  # Our free model
     }
-
-    def __init__(self, user_id: str, tier: str = "pro", model_name: str = "ai-coder-v1", api_key: Optional[str] = None):
+    
+    def __init__(self, user_id: str, tier: str = "free", model_name: str = "codellama-34b", api_key: Optional[str] = None):
         """Initialize the code generator service."""
         logger.debug(f"Initializing CodeGenerator with user_id={user_id}, tier={tier}, model={model_name}, has_api_key={bool(api_key)}")
         self.user_id = user_id
         self.tier = tier
         self.model_name = model_name
         self.api_key = api_key
+        
+        # Initialize services
         self.usage_tracker = UsageTracker(user_id)
-        self.tier_info = PricingManager.get_tier_details(tier)
+        self.pricing_manager = PricingManager()
+        
+        # Initialize model provider
         self.provider = self._initialize_provider()
         self.model_available = True
     
     def _initialize_provider(self) -> ModelProvider:
         """Initialize the appropriate model provider."""
-        if self.model_name not in self.PROVIDER_MAP and self.model_name != "ai-coder-v1":
+        if self.model_name not in self.PROVIDER_MAP:
             raise ValueError(f"Unsupported model: {self.model_name}")
-
-        if self.model_name == "ai-coder-v1":
-            return AiCoderModel()
 
         provider_class, config = self.PROVIDER_MAP[self.model_name]
         
@@ -151,6 +147,8 @@ class CodeGenerator(BaseService):
             return provider_class(model_name=config.get("model_name", "bigcode/starcoder"))
         elif provider_class == AnthropicProvider:
             return provider_class(api_key=self.api_key, model=self.model_name)
+        elif provider_class == AiCoderModel:
+            return provider_class()
         
         raise ValueError(f"Unknown provider for model: {self.model_name}")
 
@@ -166,12 +164,12 @@ class CodeGenerator(BaseService):
         """Generate code based on the prompt using the selected model"""
         try:
             # Check usage limits
-            exceeded_limits = self.usage_tracker.check_limits(self.tier_info["limits"])
+            exceeded_limits = self.usage_tracker.check_limits(self.pricing_manager.get_tier_details(self.tier)["limits"])
             if exceeded_limits:
                 return {
                     "error": "Usage limits exceeded",
                     "details": exceeded_limits,
-                    "overage_charges": PricingManager.calculate_overage_charges(
+                    "overage_charges": self.pricing_manager.calculate_overage_charges(
                         self.tier, 
                         self.usage_tracker.get_monthly_usage()
                     )
@@ -227,7 +225,7 @@ class CodeGenerator(BaseService):
         """Get current usage statistics."""
         monthly_usage = self.usage_tracker.get_monthly_usage()
         alerts = self.usage_tracker.get_usage_alerts()
-        overage_charges = PricingManager.calculate_overage_charges(
+        overage_charges = self.pricing_manager.calculate_overage_charges(
             self.tier,
             monthly_usage
         )
@@ -236,5 +234,5 @@ class CodeGenerator(BaseService):
             "usage": monthly_usage,
             "alerts": alerts,
             "overage_charges": overage_charges,
-            "tier": self.tier_info
+            "tier": self.pricing_manager.get_tier_details(self.tier)
         }
