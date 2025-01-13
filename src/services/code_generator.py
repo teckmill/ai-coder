@@ -1,6 +1,7 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import os
 import logging
+import subprocess
 from langchain_community.llms import Ollama
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -17,12 +18,32 @@ load_dotenv()
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
-    def __init__(self, model_name: str = "codellama", **kwargs):
+    def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the code generator service."""
-        logger.debug(f"Initializing CodeGenerator with model={model_name}, kwargs={kwargs}")
-        super().__init__(model_name=model_name, **kwargs)
-        self.api_key = kwargs.get('api_key')
+        logger.debug(f"Initializing CodeGenerator with model={model_name}, has_api_key={bool(api_key)}")
+        super().__init__(model_name=model_name, api_key=api_key)
         self.initialize_model()
+    
+    @staticmethod
+    def get_available_ollama_models() -> List[str]:
+        """Get list of available Ollama models on the system."""
+        try:
+            result = subprocess.run(['ollama', 'list'], capture_output=True, text=True)
+            if result.returncode == 0:
+                # Parse the output to get model names
+                models = []
+                for line in result.stdout.split('\n')[1:]:  # Skip header line
+                    if line.strip():
+                        model_name = line.split()[0]  # First column is model name
+                        models.append(model_name)
+                logger.debug(f"Found local models: {models}")
+                return models
+            else:
+                logger.warning("Failed to get Ollama models list")
+                return []
+        except Exception as e:
+            logger.error(f"Error checking Ollama models: {str(e)}")
+            return []
     
     def initialize_model(self):
         """Initialize the appropriate model based on model name."""
@@ -32,6 +53,19 @@ class CodeGenerator(BaseService):
             # Check if model is local or cloud-based
             if self.model_name in LOCAL_MODELS:
                 logger.debug(f"Using local model {self.model_name}")
+                
+                # Check if model is available locally
+                available_models = self.get_available_ollama_models()
+                if self.model_name not in available_models:
+                    logger.warning(f"Local model {self.model_name} not found. Attempting to pull...")
+                    # Try to pull the model
+                    try:
+                        subprocess.run(['ollama', 'pull', self.model_name], check=True)
+                        logger.info(f"Successfully pulled model {self.model_name}")
+                    except subprocess.CalledProcessError as e:
+                        logger.error(f"Failed to pull model {self.model_name}: {str(e)}")
+                        raise ValueError(f"Local model {self.model_name} not available and failed to pull")
+                
                 self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
                 self.model_available = True
             

@@ -38,15 +38,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+def get_available_models(model_type: str) -> List[str]:
+    """Get list of available models based on type."""
+    if model_type == "Local":
+        available_models = CodeGenerator.get_available_ollama_models()
+        # Only show models that are configured in LOCAL_MODELS
+        return [model for model in available_models if model in LOCAL_MODELS]
+    else:
+        return list(CLOUD_MODELS.keys())
+
 # Initialize services
 def initialize_services():
     try:
         logger.debug(f"Initializing services with model={st.session_state.selected_model}, has_api_key={bool(st.session_state.api_key)}")
         
-        # Initialize code generator
+        # Initialize code generator with explicit api_key
+        api_key = st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
         st.session_state.code_generator = CodeGenerator(
             model_name=st.session_state.selected_model,
-            api_key=st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
+            api_key=api_key
         )
         
         # Initialize other services
@@ -323,28 +333,37 @@ def main():
         model_type = st.radio("Select Model Type", ["Local", "Cloud"])
         
         # Get model list based on type
+        model_list = get_available_models(model_type)
+        
         if model_type == "Local":
-            model_list = list(LOCAL_MODELS.keys())
-            # Clear API key if switching to local model
+            if not model_list:
+                st.warning("No local models found. Installing codellama...")
+                try:
+                    CodeGenerator.get_available_ollama_models()  # This will attempt to pull codellama
+                    model_list = get_available_models(model_type)
+                except Exception as e:
+                    st.error("Failed to install local model. Please make sure Ollama is installed and running.")
             st.session_state.api_key = None
         else:
-            model_list = list(CLOUD_MODELS.keys())
             st.info("Cloud models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
             st.session_state.api_key = api_key if api_key else None
         
         # Select specific model
-        selected_model = st.selectbox("Select Model", model_list)
-        
-        # Reinitialize services if model or API key changes
-        if selected_model != st.session_state.selected_model:
-            logger.debug(f"Model changed from {st.session_state.selected_model} to {selected_model}")
-            st.session_state.selected_model = selected_model
-            st.session_state.services_initialized = False
-        
-        # Initialize services button
-        if st.button("Initialize Services"):
-            initialize_services()
+        if model_list:
+            selected_model = st.selectbox("Select Model", model_list)
+            
+            # Reinitialize services if model or API key changes
+            if selected_model != st.session_state.selected_model:
+                logger.debug(f"Model changed from {st.session_state.selected_model} to {selected_model}")
+                st.session_state.selected_model = selected_model
+                st.session_state.services_initialized = False
+            
+            # Initialize services button
+            if st.button("Initialize Services"):
+                initialize_services()
+        else:
+            st.error("No models available. Please check your setup.")
     
     # Show error if services not initialized
     if not st.session_state.services_initialized:
