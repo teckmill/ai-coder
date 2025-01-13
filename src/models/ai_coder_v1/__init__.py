@@ -1,4 +1,4 @@
 """AI Coder model package."""
-from .model import AiCoderConfig, AiCoderForCausalLM
+from .model import AiCoderConfig, AiCoderModel, AiCoderForCausalLM
 
-__all__ = ["AiCoderConfig", "AiCoderForCausalLM"]
+__all__ = ["AiCoderConfig", "AiCoderModel", "AiCoderForCausalLM"]

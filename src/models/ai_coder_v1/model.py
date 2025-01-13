@@ -122,8 +122,8 @@ class AiCoderLayer(nn.Module):
         
         return hidden_states + self.dropout(layer_output)
 
-class AiCoderPreTrainedModel(PreTrainedModel):
-    """Base class for AI Coder models."""
+class AiCoderModel(PreTrainedModel):
+    """Main AI Coder model implementation."""
     config_class = AiCoderConfig
     base_model_prefix = "ai_coder"
     
@@ -139,9 +139,7 @@ class AiCoderPreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-
-class AiCoderModel(AiCoderPreTrainedModel):
-    """Main AI Coder model implementation."""
+    
     def __init__(self, config):
         super().__init__(config)
         self.embeddings = nn.ModuleDict({
@@ -219,8 +217,24 @@ class AiCoderModel(AiCoderPreTrainedModel):
         
         return hidden_states
 
-class AiCoderForCausalLM(AiCoderPreTrainedModel):
+class AiCoderForCausalLM(PreTrainedModel):
     """AI Coder model with language modeling head."""
+    config_class = AiCoderConfig
+    base_model_prefix = "ai_coder"
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+        elif isinstance(module, nn.LayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
+    
     def __init__(self, config):
         super().__init__(config)
         self.ai_coder = AiCoderModel(config)
@@ -230,7 +244,7 @@ class AiCoderForCausalLM(AiCoderPreTrainedModel):
         self.apply(self._init_weights)
         
         # Tie weights if configured
-        if not config.tie_word_embeddings:
+        if config.tie_word_embeddings:
             self.lm_head.weight = self.ai_coder.get_input_embeddings().weight
     
     def get_output_embeddings(self):
