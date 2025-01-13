@@ -4,7 +4,7 @@ import logging
 from langchain_community.llms import Ollama
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
-from .base_service import BaseService
+from src.services.base_service import BaseService
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -105,3 +105,8 @@ class CodeGenerator(BaseService):
                 "code": f"Error: {str(e)}",
                 "explanation": "Code generation failed"
             }
+
+    def generate_code(self, description: str) -> str:
+        # Implement the logic to generate code based on the description
+        # For now, let's return a placeholder string
+        return f"Generated code for: {description}"

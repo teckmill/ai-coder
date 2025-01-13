@@ -1,0 +1,131 @@
+{
+  "name": "vscode-ai-coder",
+  "displayName": "AI Coder",
+  "description": "Advanced AI-powered code generation and analysis",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:aiCoderChat"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ai-coder",
+          "title": "AI Coder",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ai-coder": [
+        {
+          "type": "webview",
+          "id": "aiCoderChat",
+          "name": "AI Chat",
+          "icon": "media/chat.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "ai-coder.chat",
+        "title": "Open AI Chat"
+      },
+      {
+        "command": "ai-coder.generateCode",
+        "title": "AI Coder: Generate Code"
+      },
+      {
+        "command": "ai-coder.analyzeCode",
+        "title": "AI Coder: Analyze Code"
+      },
+      {
+        "command": "ai-coder.refactorCode",
+        "title": "AI Coder: Refactor Code"
+      },
+      {
+        "command": "ai-coder.explainCode",
+        "title": "AI Coder: Explain Code"
+      }
+    ],
+    "configuration": {
+      "title": "AI Coder",
+      "properties": {
+        "ai-coder.modelPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Ollama model"
+        },
+        "ai-coder.maxTokens": {
+          "type": "number",
+          "default": 2048,
+          "description": "Maximum number of tokens for code generation"
+        },
+        "ai-coder.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Temperature for code generation (0.0 - 1.0)"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "ai-coder.generateCode",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g"
+      },
+      {
+        "command": "ai-coder.analyzeCode",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "ai-coder.generateCode",
+          "group": "AI Coder"
+        },
+        {
+          "command": "ai-coder.analyzeCode",
+          "group": "AI Coder"
+        },
+        {
+          "command": "ai-coder.refactorCode",
+          "group": "AI Coder"
+        },
+        {
+          "command": "ai-coder.explainCode",
+          "group": "AI Coder"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.68",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@vscode/vsce": "^3.2.1",
+    "axios": "^1.6.2"
+  }
+}
