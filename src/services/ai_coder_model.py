@@ -21,6 +21,7 @@ if project_root not in sys.path:
 
 logger = logging.getLogger(__name__)
 
+
 class ModelConfig:
     """Configuration for the AI Coder model."""
 
