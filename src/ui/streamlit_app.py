@@ -48,14 +48,11 @@ def local_css():
 
 def initialize_session_state():
     """Initialize session state variables."""
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
     if "user_id" not in st.session_state:
         st.session_state.user_id = str(uuid.uuid4())
 
-    if "analytics" not in st.session_state:
-        st.session_state.analytics = UsageAnalytics(st.session_state.user_id)
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
     if "usage_tracker" not in st.session_state:
         st.session_state.usage_tracker = UsageTracker(st.session_state.user_id)
@@ -64,10 +61,13 @@ def initialize_session_state():
         st.session_state.code_generator = CodeGenerator(user_id=st.session_state.user_id)
 
     if "code_analyzer" not in st.session_state:
-        st.session_state.code_analyzer = CodeAnalyzer(user_id=st.session_state.user_id)
+        st.session_state.code_analyzer = CodeAnalyzer()
 
     if "code_refactor" not in st.session_state:
         st.session_state.code_refactor = CodeRefactor(user_id=st.session_state.user_id)
+
+    if "analytics" not in st.session_state:
+        st.session_state.analytics = UsageAnalytics(st.session_state.user_id)
 
 
 def display_message(message):
