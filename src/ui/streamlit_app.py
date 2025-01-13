@@ -21,6 +21,10 @@ from src.services.db_schema_generator import DBSchemaGenerator
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Define available models
+FREE_MODELS = ["codellama", "llama2", "mistral"]
+PREMIUM_MODELS = ["gpt-4", "gpt-3.5-turbo", "claude-2"]
+
 # Initialize session state for storing API key and model selection
 if 'api_key' not in st.session_state:
     st.session_state.api_key = None
@@ -313,13 +317,10 @@ def main():
         # Model selection
         model_type = st.radio("Select Model Type", ["Free", "Premium"])
         
-        # Get available models
-        model_types = CodeGenerator.get_model_types()
-        
         if model_type == "Free":
-            model_list = model_types["Free"]
+            model_list = FREE_MODELS
         else:
-            model_list = model_types["Premium"]
+            model_list = PREMIUM_MODELS
             st.info("Premium models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
             if api_key:
