@@ -16,10 +16,9 @@ load_dotenv()
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
-    MODEL_TYPES = {
-        "Free": ["codellama", "llama2", "mistral"],
-        "Premium": ["gpt-4", "gpt-3.5-turbo", "claude-2"]
-    }
+    # Define available models
+    FREE_MODELS = ["codellama", "llama2", "mistral"]
+    PREMIUM_MODELS = ["gpt-4", "gpt-3.5-turbo", "claude-2"]
     
     def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the code generator service."""
@@ -31,9 +30,9 @@ class CodeGenerator(BaseService):
     def initialize_model(self):
         """Initialize the appropriate model based on model name."""
         try:
-            if self.model_name in self.MODEL_TYPES["Free"]:
+            if self.model_name in self.FREE_MODELS:
                 self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
-            elif self.model_name in self.MODEL_TYPES["Premium"]:
+            elif self.model_name in self.PREMIUM_MODELS:
                 if not self.api_key:
                     raise ValueError(f"API key required for premium model {self.model_name}")
                 if "gpt" in self.model_name:
@@ -51,9 +50,12 @@ class CodeGenerator(BaseService):
             raise
 
     @classmethod
-    def get_model_types(cls):
+    def get_model_types(cls) -> Dict[str, list]:
         """Get the available model types and their corresponding models."""
-        return cls.MODEL_TYPES
+        return {
+            "Free": cls.FREE_MODELS,
+            "Premium": cls.PREMIUM_MODELS
+        }
 
     async def generate(self, prompt: str, language: str = "python") -> Dict:
         """Generate code based on the prompt using the selected model"""
