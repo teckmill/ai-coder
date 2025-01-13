@@ -25,54 +25,51 @@ from src.services.db_schema_generator import DBSchemaGenerator
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def is_ollama_api_accessible() -> bool:
+    """Check if the Ollama API is accessible."""
+    try:
+        import requests
+        response = requests.get('http://localhost:11434/api/tags')
+        return response.status_code == 200
+    except Exception as e:
+        logger.debug(f"Error connecting to Ollama API: {e}")
+        return False
+
 def get_ollama_path() -> Optional[str]:
-    """Get the path to Ollama executable."""
-    # First try the PATH
+    """Get the path to Ollama executable or verify API access."""
+    # First check if we can access the API
+    if is_ollama_api_accessible():
+        logger.debug("Successfully connected to Ollama API")
+        return 'ollama'  # Return a placeholder since we can access the API
+    
+    # If API not accessible, try to find the binary
     ollama_in_path = shutil.which('ollama')
     if ollama_in_path:
         logger.debug(f"Found Ollama in PATH: {ollama_in_path}")
         return ollama_in_path
     
-    # Check if we're in a Docker/container environment
-    in_container = os.path.exists('/.dockerenv') or os.path.exists('/run/.containerenv')
-    logger.debug(f"Running in container: {in_container}")
+    # Log environment info for debugging
+    logger.debug(f"Environment info:")
+    logger.debug(f"OS: {os.name}")
+    logger.debug(f"Platform: {sys.platform}")
+    logger.debug(f"CWD: {os.getcwd()}")
+    logger.debug(f"PATH: {os.environ.get('PATH', '')}")
     
-    # If in container, Ollama should be accessed via host network
-    if in_container:
-        logger.info("Running in container - Ollama should be accessed via host network")
-        # We'll use the host network to access Ollama running on the host machine
-        # No need to find the binary, just verify the service is accessible
-        try:
-            # Try to connect to Ollama API
-            import requests
-            response = requests.get('http://localhost:11434/api/tags')
-            if response.status_code == 200:
-                logger.debug("Successfully connected to Ollama API")
-                return 'ollama'  # Return a placeholder since we can access the API
-            else:
-                logger.warning(f"Could not connect to Ollama API: {response.status_code}")
-        except Exception as e:
-            logger.warning(f"Error connecting to Ollama API: {e}")
-        return None
-        
-    # Platform-specific paths for non-container environments
-    if os.name == 'nt':  # Windows
-        local_appdata = os.environ.get('LOCALAPPDATA', '')
-        program_files = os.environ.get('PROGRAMFILES', '')
-        program_files_x86 = os.environ.get('PROGRAMFILES(X86)', '')
-        
+    # Check common paths based on platform
+    if sys.platform == 'win32':
         possible_paths = [
-            os.path.join(local_appdata, "Programs", "Ollama", "ollama.exe"),
-            os.path.join(local_appdata, "Programs", "Windsurf", "bin", "ollama.exe"),
-            os.path.join(program_files, "Ollama", "ollama.exe"),
-            os.path.join(program_files_x86, "Ollama", "ollama.exe") if program_files_x86 else None
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), "Programs", "Ollama", "ollama.exe"),
+            os.path.join(os.environ.get('PROGRAMFILES', ''), "Ollama", "ollama.exe"),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), "Ollama", "ollama.exe") if 'PROGRAMFILES(X86)' in os.environ else None,
         ]
-    else:  # Linux/Unix
+    else:
         possible_paths = [
             "/usr/local/bin/ollama",
             "/usr/bin/ollama",
             os.path.expanduser("~/.local/bin/ollama"),
-            "/opt/ollama/ollama"
+            "/opt/ollama/ollama",
+            "./ollama",  # Check current directory
+            "../ollama",  # Check parent directory
         ]
     
     # Filter out None values
@@ -91,7 +88,7 @@ def get_ollama_path() -> Optional[str]:
             else:
                 logger.debug(f"File does not exist: {path}")
     
-    logger.warning("Ollama not found in standard locations")
+    logger.warning("Could not find Ollama binary or access API")
     return None
 
 def is_ollama_installed() -> bool:
@@ -166,16 +163,13 @@ def initialize_services():
     try:
         logger.debug(f"Initializing services with model={st.session_state.selected_model}, has_api_key={bool(st.session_state.api_key)}")
         
-        # Check if Ollama is installed for local models
+        # For local models, check Ollama API access
         if st.session_state.selected_model in LOCAL_MODELS:
-            if not is_ollama_installed():
-                raise ValueError("Ollama is not installed or not found in standard locations.")
-            
-            # Try to verify Ollama is running
-            try:
-                check_ollama_models()
-            except Exception as e:
-                raise ValueError("Ollama is installed but may not be running. Please check your system tray.")
+            if not is_ollama_api_accessible():
+                raise ValueError("""Ollama API not accessible. Please:
+                1. Make sure Ollama is installed and running
+                2. Check if it's accessible at http://localhost:11434
+                3. Restart Ollama if needed""")
         
         # Initialize code generator with explicit api_key
         api_key = st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
