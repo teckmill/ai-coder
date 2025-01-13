@@ -3,14 +3,8 @@
 import os
 import sys
 import uuid
-from datetime import datetime
 
 import streamlit as st
-
-# Add the project root to Python path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 from src.services.analytics import UsageAnalytics
 from src.services.code_analyzer import CodeAnalyzer
@@ -19,159 +13,33 @@ from src.services.code_refactor import CodeRefactor
 from src.services.pricing import PricingManager
 from src.services.usage_tracker import UsageTracker
 
+# Add the project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 
 # Custom CSS for ChatGPT-like interface
 def local_css():
+    """Custom CSS for ChatGPT-like interface."""
     st.markdown(
         """
     <style>
-        /* Chat container */
-        .chat-container {
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 0.5rem;
-        }
-        
-        /* User message */
-        .user-message {
-            background-color: #343541;
-            color: #ECECF1;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border-radius: 0.5rem;
-        }
-        
-        /* Assistant message */
-        .assistant-message {
-            background-color: #444654;
-            color: #ECECF1;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border-radius: 0.5rem;
-            border-left: 4px solid #19c37d;
-        }
-        
-        /* Welcome message */
-        .welcome-message {
-            background-color: #444654;
-            color: #ECECF1;
-            padding: 2rem;
-            margin: 2rem auto;
-            border-radius: 1rem;
-            max-width: 800px;
-            text-align: center;
-        }
-        
-        .welcome-message h1 {
-            color: #19c37d;
-            margin-bottom: 1.5rem;
-        }
-        
-        .welcome-message ul {
-            list-style: none;
-            padding: 0;
-            margin: 1.5rem 0;
-        }
-        
-        .welcome-message li {
-            margin: 0.75rem 0;
-            font-size: 1.1rem;
-        }
-        
-        .welcome-message p {
-            color: #ECECF1;
-            font-size: 1.1rem;
-        }
-        
-        /* Code blocks */
-        .code-block {
-            background-color: #1e1e1e;
-            color: #d4d4d4;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            font-family: 'Consolas', monospace;
-        }
-        
-        /* Sidebar */
-        .sidebar-content {
-            padding: 1rem;
-        }
-        
-        /* Features */
-        .feature-card {
-            background-color: #343541;
-            color: #ECECF1;
-            padding: 1rem;
-            margin: 0.5rem 0;
-            border-radius: 0.5rem;
-            border: 1px solid #4d4d4d;
-        }
-        
-        .feature-icon {
-            font-size: 1.5rem;
-            margin-right: 0.5rem;
-        }
-        
-        /* Input area */
-        .input-area {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 1rem;
-            background-color: #343541;
-            border-top: 1px solid #4d4d4d;
-        }
-        
-        /* Model selector */
-        .model-selector {
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid #4d4d4d;
-            background-color: #343541;
-            color: #ECECF1;
-        }
-        
-        /* Progress bars */
-        .stProgress > div > div > div {
-            background-color: #19c37d;
-        }
-
-        /* Override Streamlit's theme */
-        .stApp {
-            background-color: #343541;
-            color: #ECECF1;
-        }
-
-        .stTextArea > div > div > textarea {
-            background-color: #444654;
-            color: #ECECF1;
-            border: 1px solid #4d4d4d;
-        }
-
-        .stTextArea > div > div > textarea:focus {
-            box-shadow: 0 0 0 2px #19c37d;
-        }
-
-        .stButton > button {
-            background-color: #19c37d;
-            color: white;
-            border: none;
-        }
-
-        .stButton > button:hover {
-            background-color: #15a76c;
-        }
-
-        .sidebar .stButton > button {
-            background-color: #444654;
-            border: 1px solid #4d4d4d;
-        }
-
-        .sidebar .stButton > button:hover {
-            background-color: #515262;
-        }
+    .reportview-container {
+        background: #f0f2f6;
+    }
+    .sidebar .sidebar-content {
+        background: #ffffff;
+    }
+    .stButton>button {
+        color: white;
+        background-color: #4CAF50;
+        border-radius: 10px;
+    }
+    .stTextArea>div>div>textarea {
+        background-color: #f9f9f9;
+        border: 1px solid #e0e0e0;
+    }
     </style>
     """,
         unsafe_allow_html=True,
@@ -193,132 +61,174 @@ def initialize_session_state():
         st.session_state.usage_tracker = UsageTracker(st.session_state.user_id)
 
     if "code_generator" not in st.session_state:
-        st.session_state.code_generator = CodeGenerator(user_id=st.session_state.user_id)
+        st.session_state.code_generator = CodeGenerator(
+            user_id=st.session_state.user_id
+        )
 
     if "code_analyzer" not in st.session_state:
-        st.session_state.code_analyzer = CodeAnalyzer()
+        st.session_state.code_analyzer = CodeAnalyzer(
+            user_id=st.session_state.user_id)
 
     if "code_refactor" not in st.session_state:
-        st.session_state.code_refactor = CodeRefactor()
+        st.session_state.code_refactor = CodeRefactor(
+            user_id=st.session_state.user_id)
 
 
 def display_message(message):
-    """Display a chat message."""
-    role = message["role"]
-    content = message["content"]
+    """Display a chat message in the UI."""
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    if role == "user":
-        st.markdown(
-            f"""
-        <div class="user-message">
-            <strong>You:</strong><br/>
-            {content}
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f"""
-        <div class="assistant-message">
-            <strong>AI Coder:</strong><br/>
-            {content}
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
+
+def display_code_suggestions(code_suggestions):
+    """Display code suggestions in the UI."""
+    if code_suggestions:
+        st.subheader("Code Suggestions")
+        for idx, suggestion in enumerate(code_suggestions, 1):
+            with st.expander(f"Suggestion {idx}"):
+                st.code(suggestion, language="python")
+
+
+def display_code_analysis(analysis_results):
+    """Display code analysis results in the UI."""
+    if analysis_results:
+        st.subheader("Code Analysis")
+        for idx, result in enumerate(analysis_results, 1):
+            with st.expander(f"Analysis {idx}"):
+                st.markdown(result)
+
+
+def display_code_refactoring(refactoring_results):
+    """Display code refactoring results in the UI."""
+    if refactoring_results:
+        st.subheader("Code Refactoring")
+        for idx, refactored_code in enumerate(refactoring_results, 1):
+            with st.expander(f"Refactored Code {idx}"):
+                st.code(refactored_code, language="python")
+
+
+def display_error_analysis(error_results):
+    """Display code error analysis results in the UI."""
+    if error_results:
+        st.subheader("Error Analysis")
+        for idx, error_details in enumerate(error_results, 1):
+            with st.expander(f"Error {idx}"):
+                st.markdown(f"**Error Type:** {error_details['type']}")
+                st.markdown(f"**Description:** {error_details['description']}")
+                st.code(error_details['code_snippet'], language="python")
+
+
+def display_sidebar():
+    """Create and display the sidebar with project options."""
+    st.sidebar.title("AI Coder")
+    st.sidebar.markdown("---")
+
+    # Model selection
+    st.sidebar.markdown("### Model Selection")
+    model_options = {
+        "AI Coder v1 (Free)": "ai_coder_v1",
+        "GPT-4 Turbo": "gpt_4_turbo",
+        "GPT-4": "gpt_4",
+        "GPT-3.5 Turbo": "gpt_3_5_turbo",
+        "Claude-3": "claude_3",
+    }
+    selected_model = st.sidebar.selectbox(
+        "Choose a model",
+        options=list(model_options.keys()),
+        index=0
+    )
+    st.session_state.model = model_options[selected_model]
+
+    # Current Plan
+    st.sidebar.markdown("### 💎 Current Plan")
+    selected_tier = st.sidebar.selectbox(
+        "",
+        options=list(PricingManager.PRICING_TIERS.keys()),
+        format_func=lambda x: PricingManager.PRICING_TIERS[x].name,
+    )
+    tier = PricingManager.PRICING_TIERS[selected_tier]
+    st.sidebar.markdown(
+        f"<h4>{tier.badge} {tier.name}</h4>",
+        unsafe_allow_html=True
+    )
+    st.sidebar.markdown(
+        f"<p>${tier.price}/month</p>",
+        unsafe_allow_html=True
+    )
+
+    # Usage
+    st.sidebar.markdown("### 📊 Usage")
+    usage = st.session_state.usage_tracker.get_monthly_usage()
+    for limit_name, limit_value in tier.limits.items():
+        if limit_value == float("inf") or limit_value == 0:
+            st.sidebar.write(
+                f"✨ {limit_name.replace('_', ' ').title()}: Unlimited"
+            )
+        else:
+            current_value = usage.get(limit_name, 0)
+            progress = min(1.0, current_value / max(1, limit_value))
+            st.sidebar.write(
+                limit_name.replace('_', ' ').title()
+            )
+            st.sidebar.progress(progress)
+            st.sidebar.write(
+                f"{current_value:,} / {limit_value:,}"
+            )
+
+    # Features
+    st.sidebar.markdown("### ✨ Features")
+    with st.sidebar.expander("Available Features", expanded=False):
+        feature_categories = [
+            "basic", "code_intelligence",
+            "security", "testing",
+            "performance", "collaboration",
+            "project", "devops",
+            "ai_workflow"
+        ]
+        for category in feature_categories:
+            category_features = PricingManager.FEATURES.get(category, [])
+            available_features = [
+                f for f in category_features
+                if f["name"] in [
+                    feat["name"]
+                    for feat in tier.features
+                ]
+            ]
+            if available_features:
+                st.sidebar.markdown(
+                    f"**{category.replace('_', ' ').title()}**"
+                )
+                for feature in available_features:
+                    st.sidebar.markdown(
+                        f"""
+                    <div class="feature-card">
+                        <span class="feature-icon">
+                            {feature['icon']}
+                        </span>
+                        <strong>{feature['name']}</strong>
+                        <p>
+                            <small>
+                                {feature['description']}
+                            </small>
+                        </p>
+                    </div>
+                    """,
+                        unsafe_allow_html=True
+                    )
 
 
 def main():
-    st.set_page_config(
-        page_title="AI Coder",
-        page_icon="🤖",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
+    """Main Streamlit application entry point."""
+    st.set_page_config(page_title="AI Coder", page_icon="🤖", layout="wide")
 
     local_css()
     initialize_session_state()
+    display_sidebar()
 
-    # Sidebar
-    with st.sidebar:
-        st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-
-        # Model selection
-        st.markdown("### Model Selection")
-        model_options = {
-            "AI Coder v1 (Free)": "ai_coder_v1",
-            "GPT-4 Turbo": "gpt_4_turbo",
-            "GPT-4": "gpt_4",
-            "GPT-3.5 Turbo": "gpt_3_5_turbo",
-            "Claude-3": "claude_3",
-        }
-        selected_model = st.selectbox(
-            "Choose a model",
-            options=list(model_options.keys()),
-            index=0,  # Set AI Coder as default
-        )
-        st.session_state.model = model_options[selected_model]
-
-        # Current Plan
-        st.markdown("### 💎 Current Plan")
-        selected_tier = st.selectbox(
-            "",
-            options=list(PricingManager.PRICING_TIERS.keys()),
-            format_func=lambda x: PricingManager.PRICING_TIERS[x].name,
-        )
-        tier = PricingManager.PRICING_TIERS[selected_tier]
-        st.markdown(f"<h4>{tier.badge} {tier.name}</h4>", unsafe_allow_html=True)
-        st.markdown(f"<p>${tier.price}/month</p>", unsafe_allow_html=True)
-
-        # Usage
-        st.markdown("### 📊 Usage")
-        usage = st.session_state.usage_tracker.get_monthly_usage()
-        for limit_name, limit_value in tier.limits.items():
-            if limit_value == float("inf") or limit_value == 0:
-                st.write(f"✨ {limit_name.replace('_', ' ').title()}: Unlimited")
-            else:
-                current_value = usage.get(limit_name, 0)
-                progress = min(1.0, current_value / max(1, limit_value))
-                st.write(f"{limit_name.replace('_', ' ').title()}")
-                st.progress(progress)
-                st.write(f"{current_value:,} / {limit_value:,}")
-
-        # Features
-        st.markdown("### ✨ Features")
-        with st.expander("Available Features", expanded=False):
-            for category in [
-                "basic",
-                "code_intelligence",
-                "security",
-                "testing",
-                "performance",
-                "collaboration",
-                "project",
-                "devops",
-                "ai_workflow",
-            ]:
-                category_features = PricingManager.FEATURES.get(category, [])
-                available_features = [
-                    f
-                    for f in category_features
-                    if f["name"] in [feat["name"] for feat in tier.features]
-                ]
-                if available_features:
-                    st.markdown(f"**{category.replace('_', ' ').title()}**")
-                    for feature in available_features:
-                        st.markdown(
-                            f"""
-                        <div class="feature-card">
-                            <span class="feature-icon">{feature['icon']}</span>
-                            <strong>{feature['name']}</strong>
-                            <p><small>{feature['description']}</small></p>
-                        </div>
-                        """,
-                            unsafe_allow_html=True,
-                        )
-
-        st.markdown("</div>", unsafe_allow_html=True)
+    # Page title and description
+    st.title("AI Coder: Your Intelligent Code Companion")
+    st.write("Generate, analyze, and refactor code "
+             "with advanced AI-powered assistance.")
 
     # Main chat area
     st.markdown('<div style="margin-bottom: 100px">', unsafe_allow_html=True)
@@ -373,7 +283,8 @@ def main():
 
     if submit and user_input:
         # Add user message
-        st.session_state.messages.append({"role": "user", "content": user_input})
+        st.session_state.messages.append(
+            {"role": "user", "content": user_input})
 
         # Generate response
         try:
@@ -387,16 +298,20 @@ def main():
 
             # Process the request
             if "generate" in user_input.lower() or "create" in user_input.lower():
-                response = st.session_state.code_generator.generate_code(user_input)
+                response = st.session_state.code_generator.generate_code(
+                    user_input)
             elif "analyze" in user_input.lower() or "review" in user_input.lower():
-                response = st.session_state.code_analyzer.analyze_code(user_input)
+                response = st.session_state.code_analyzer.analyze_code(
+                    user_input)
             elif "refactor" in user_input.lower() or "improve" in user_input.lower():
-                response = st.session_state.code_refactor.refactor_code(user_input)
+                response = st.session_state.code_refactor.refactor_code(
+                    user_input)
             else:
                 response = st.session_state.code_generator.chat(user_input)
 
             # Add assistant message
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            st.session_state.messages.append(
+                {"role": "assistant", "content": response})
 
             # Track analytics
             st.session_state.analytics.track_event(
