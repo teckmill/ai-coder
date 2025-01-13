@@ -151,9 +151,10 @@ class DBSchemaGenerator(BaseService):
             
             # Create indexes
             for index in schema.get("indexes", []):
-                create_index = f"""
-                CREATE INDEX idx_{index['table']}_{index['column']}
-                ON {index['table']} ({index['column']});"""
+                create_index = (
+                    f"CREATE INDEX idx_{index['table']}_{index['column']} "
+                    f"ON {index['table']} ({index['column']});"
+                )
                 
                 sql_statements.append(create_index)
             
