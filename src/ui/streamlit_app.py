@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.base_service import BaseService
-from src.services.code_generator import CodeGenerator
+from src.services.code_generator import CodeGenerator, FREE_MODELS, PREMIUM_MODELS
 from src.services.code_analyzer import CodeAnalyzer
 from src.services.template_manager import TemplateManager
 from src.services.project_generator import ProjectGenerator
@@ -20,10 +20,6 @@ from src.services.db_schema_generator import DBSchemaGenerator
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-# Define available models
-FREE_MODELS = ["codellama", "llama2", "mistral"]
-PREMIUM_MODELS = ["gpt-4", "gpt-3.5-turbo", "claude-2"]
 
 # Initialize session state for storing API key and model selection
 if 'api_key' not in st.session_state:
@@ -44,18 +40,26 @@ st.set_page_config(
 # Initialize services
 def initialize_services():
     try:
+        logger.debug(f"Initializing services with model={st.session_state.selected_model}, has_api_key={bool(st.session_state.api_key)}")
+        
+        # Initialize code generator
         st.session_state.code_generator = CodeGenerator(
             model_name=st.session_state.selected_model,
             api_key=st.session_state.api_key
         )
+        
+        # Initialize other services
         st.session_state.code_analyzer = CodeAnalyzer()
         st.session_state.template_manager = TemplateManager()
         st.session_state.project_generator = ProjectGenerator()
         st.session_state.api_doc_generator = APIDocGenerator()
         st.session_state.performance_profiler = PerformanceProfiler()
         st.session_state.db_schema_generator = DBSchemaGenerator()
+        
         st.session_state.services_initialized = True
+        logger.debug("Services initialized successfully")
     except Exception as e:
+        logger.error(f"Error initializing services: {str(e)}")
         st.error(f"Error initializing services: {str(e)}")
         st.session_state.services_initialized = False
 
@@ -317,28 +321,33 @@ def main():
         # Model selection
         model_type = st.radio("Select Model Type", ["Free", "Premium"])
         
+        # Get model list based on type
         if model_type == "Free":
             model_list = FREE_MODELS
+            # Clear API key if switching to free model
+            st.session_state.api_key = None
         else:
             model_list = PREMIUM_MODELS
             st.info("Premium models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
-            if api_key:
-                st.session_state.api_key = api_key
-            else:
-                st.session_state.api_key = None
+            st.session_state.api_key = api_key if api_key else None
         
+        # Select specific model
         selected_model = st.selectbox("Select Model", model_list)
         
+        # Reinitialize services if model or API key changes
         if selected_model != st.session_state.selected_model:
+            logger.debug(f"Model changed from {st.session_state.selected_model} to {selected_model}")
             st.session_state.selected_model = selected_model
             st.session_state.services_initialized = False
         
-        if not st.session_state.services_initialized:
+        # Initialize services button
+        if st.button("Initialize Services"):
             initialize_services()
     
+    # Show error if services not initialized
     if not st.session_state.services_initialized:
-        st.error("Services not initialized. Please check your model settings and API key if using a premium model.")
+        st.warning("Services not initialized. Please initialize services to continue.")
         return
     
     # Constants
