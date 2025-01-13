@@ -1,19 +1,8 @@
 import streamlit as st
 import logging
-import subprocess
-import shutil
+from typing import Optional
 import os
-from pathlib import Path
-from typing import Dict, List, Optional, Union
-import sys
-from pathlib import Path
-
-# Add the parent directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
-from src.services.base_service import BaseService
 from src.services.code_generator import CodeGenerator
-from src.config.models import LOCAL_MODELS, CLOUD_MODELS
 from src.services.code_analyzer import CodeAnalyzer
 from src.services.template_manager import TemplateManager
 from src.services.project_generator import ProjectGenerator
@@ -21,161 +10,148 @@ from src.services.api_doc_generator import APIDocGenerator
 from src.services.performance_profiler import PerformanceProfiler
 from src.services.db_schema_generator import DBSchemaGenerator
 
-# Set up logging
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-def is_ollama_api_accessible() -> bool:
-    """Check if the Ollama API is accessible."""
-    try:
-        import requests
-        response = requests.get('http://localhost:11434/api/tags')
-        return response.status_code == 200
-    except Exception as e:
-        logger.debug(f"Error connecting to Ollama API: {e}")
-        return False
+# Constants
+CLOUD_MODELS = [
+    "gpt-4-turbo-preview",
+    "gpt-4",
+    "gpt-3.5-turbo-16k",
+    "gpt-3.5-turbo",
+]
 
-def get_ollama_path() -> Optional[str]:
-    """Get the path to Ollama executable or verify API access."""
-    # First check if we can access the API
-    if is_ollama_api_accessible():
-        logger.debug("Successfully connected to Ollama API")
-        return 'ollama'  # Return a placeholder since we can access the API
+MODEL_DESCRIPTIONS = {
+    "gpt-4-turbo-preview": "🚀 Latest & fastest GPT-4 model, optimized for complex coding tasks",
+    "gpt-4": "🧠 Most capable GPT-4 model for highest quality code generation",
+    "gpt-3.5-turbo-16k": "💪 Extended context GPT-3.5 for larger codebases",
+    "gpt-3.5-turbo": "⚡ Fast and efficient for standard coding tasks"
+}
+
+def setup_page():
+    """Configure the Streamlit page settings."""
+    st.set_page_config(
+        page_title="AI Coder Pro",
+        page_icon="🤖",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
     
-    # If API not accessible, try to find the binary
-    ollama_in_path = shutil.which('ollama')
-    if ollama_in_path:
-        logger.debug(f"Found Ollama in PATH: {ollama_in_path}")
-        return ollama_in_path
-    
-    # Log environment info for debugging
-    logger.debug(f"Environment info:")
-    logger.debug(f"OS: {os.name}")
-    logger.debug(f"Platform: {sys.platform}")
-    logger.debug(f"CWD: {os.getcwd()}")
-    logger.debug(f"PATH: {os.environ.get('PATH', '')}")
-    
-    # Check common paths based on platform
-    if sys.platform == 'win32':
-        possible_paths = [
-            os.path.join(os.environ.get('LOCALAPPDATA', ''), "Programs", "Ollama", "ollama.exe"),
-            os.path.join(os.environ.get('PROGRAMFILES', ''), "Ollama", "ollama.exe"),
-            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), "Ollama", "ollama.exe") if 'PROGRAMFILES(X86)' in os.environ else None,
-        ]
-    else:
-        possible_paths = [
-            "/usr/local/bin/ollama",
-            "/usr/bin/ollama",
-            os.path.expanduser("~/.local/bin/ollama"),
-            "/opt/ollama/ollama",
-            "./ollama",  # Check current directory
-            "../ollama",  # Check parent directory
-        ]
-    
-    # Filter out None values
-    possible_paths = [p for p in possible_paths if p]
-    
-    # Log the paths we're checking
-    logger.debug("Checking these paths for Ollama:")
-    for i, path in enumerate(possible_paths):
-        logger.debug(f"{i+1}. {path}")
-        if os.path.isfile(path):
-            logger.debug(f"Found Ollama at: {path}")
-            return path
+    # Custom CSS for a more professional look
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(to bottom right, #1a1a1a, #2d2d2d);
+            color: #ffffff;
+        }
+        .stTextInput, .stSelectbox {
+            background-color: #333333;
+            color: #ffffff;
+            border-radius: 5px;
+        }
+        .stButton > button {
+            background: linear-gradient(to right, #00ff87, #60efff);
+            color: #000000;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem 2rem;
+        }
+        .premium-card {
+            background: linear-gradient(45deg, #2d2d2d, #1a1a1a);
+            border: 1px solid #333333;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .model-card {
+            background: rgba(45, 45, 45, 0.7);
+            border: 1px solid #404040;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            transition: transform 0.2s;
+        }
+        .model-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+def render_header():
+    """Render the app header."""
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.title("🤖 AI Coder Pro")
+        st.markdown("*Elevate your coding with advanced AI-powered assistance*")
+    with col2:
+        if 'api_key' in st.session_state and st.session_state.api_key:
+            st.success("✨ Premium Access")
         else:
-            if not os.path.exists(os.path.dirname(path)):
-                logger.debug(f"Directory does not exist: {os.path.dirname(path)}")
-            else:
-                logger.debug(f"File does not exist: {path}")
-    
-    logger.warning("Could not find Ollama binary or access API")
-    return None
+            st.warning("🔑 API Key Required")
 
-def is_ollama_installed() -> bool:
-    """Check if Ollama is installed and available."""
-    return get_ollama_path() is not None
-
-def run_ollama_command(command: List[str]) -> subprocess.CompletedProcess:
-    """Run an Ollama command with the full path."""
-    ollama_path = get_ollama_path()
-    if not ollama_path:
-        raise FileNotFoundError("Ollama executable not found")
-    
-    cmd = [ollama_path] + command[1:]
-    logger.debug(f"Running Ollama command: {cmd}")
-    return subprocess.run(cmd, capture_output=True, text=True)
-
-def check_ollama_models() -> List[str]:
-    """Check which Ollama models are available locally."""
-    if not is_ollama_installed():
-        logger.warning("Ollama is not installed")
-        return []
+def render_api_key_section():
+    """Render the API key input section."""
+    with st.expander("🔑 API Key Configuration", expanded='api_key' not in st.session_state):
+        st.markdown("""
+        <div class='premium-card'>
+            <h3>🌟 Premium Access</h3>
+            <p>Enter your OpenAI API key to unlock premium features:</p>
+            <ul>
+                <li>Access to latest GPT-4 models</li>
+                <li>Enhanced code generation capabilities</li>
+                <li>Priority processing</li>
+                <li>Extended context handling</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
-    try:
-        result = run_ollama_command(['ollama', 'list'])
-        if result.returncode == 0:
-            # Parse the output to get model names
-            models = []
-            for line in result.stdout.split('\n')[1:]:  # Skip header line
-                if line.strip():
-                    model_name = line.split()[0]  # First column is model name
-                    models.append(model_name)
-            logger.debug(f"Found local models: {models}")
-            return models
-        else:
-            logger.warning(f"Failed to get Ollama models list: {result.stderr}")
-            return []
-    except Exception as e:
-        logger.error(f"Error checking Ollama models: {str(e)}")
-        return []
+        api_key = st.text_input(
+            "OpenAI API Key",
+            type="password",
+            value=st.session_state.get('api_key', ''),
+            help="Your OpenAI API key is required to use the premium features"
+        )
+        
+        if api_key:
+            st.session_state.api_key = api_key
+            st.success("✅ API Key configured successfully!")
 
-def get_available_models(model_type: str) -> List[str]:
-    """Get list of available models based on type."""
-    try:
-        if model_type == "Local":
-            if not is_ollama_installed():
-                st.error("""Ollama is not installed or not found in standard locations. Please:
-                1. Make sure Ollama is installed (https://ollama.ai/download)
-                2. Check if Ollama is running (you should see the Ollama icon in your system tray)
-                3. Try restarting Ollama and this app""")
-                return []
-            
-            available_models = check_ollama_models()
-            # Only show models that are configured in LOCAL_MODELS
-            return [model for model in available_models if model in LOCAL_MODELS]
-        else:
-            return list(CLOUD_MODELS.keys())
-    except Exception as e:
-        logger.error(f"Error getting available models: {str(e)}")
-        if model_type == "Local":
-            return list(LOCAL_MODELS.keys())  # Fall back to all configured local models
-        return list(CLOUD_MODELS.keys())
-
-# Initialize session state for storing API key and model selection
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = None
-if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = "codellama"
-if 'services_initialized' not in st.session_state:
-    st.session_state.services_initialized = False
+def render_model_selection():
+    """Render the model selection section."""
+    st.markdown("### 🎯 Select AI Model")
+    
+    for model in CLOUD_MODELS:
+        with st.container():
+            st.markdown(f"""
+            <div class='model-card'>
+                <h4>{model}</h4>
+                <p>{MODEL_DESCRIPTIONS[model]}</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    selected_model = st.selectbox(
+        "Choose your preferred model",
+        options=CLOUD_MODELS,
+        index=0,
+        help="Select the AI model that best suits your needs"
+    )
+    st.session_state.selected_model = selected_model
 
 def initialize_services():
+    """Initialize the application services."""
     try:
         logger.debug(f"Initializing services with model={st.session_state.selected_model}, has_api_key={bool(st.session_state.api_key)}")
         
-        # For local models, check Ollama API access
-        if st.session_state.selected_model in LOCAL_MODELS:
-            if not is_ollama_api_accessible():
-                raise ValueError("""Ollama API not accessible. Please:
-                1. Make sure Ollama is installed and running
-                2. Check if it's accessible at http://localhost:11434
-                3. Restart Ollama if needed""")
+        if not st.session_state.api_key:
+            raise ValueError("Please configure your OpenAI API key to access premium features.")
         
-        # Initialize code generator with explicit api_key
-        api_key = st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
+        # Initialize services with API key
         st.session_state.code_generator = CodeGenerator(
             model_name=st.session_state.selected_model,
-            api_key=api_key
+            api_key=st.session_state.api_key
         )
         
         # Initialize other services
@@ -193,350 +169,39 @@ def initialize_services():
         st.error(f"Error initializing services: {str(e)}")
         st.session_state.services_initialized = False
 
-# Custom CSS
-st.markdown("""
-<style>
-    /* Main container */
-    .main {
-        padding: 2rem;
-        background-color: #222831;
-    }
-    
-    /* Headers */
-    h1 {
-        color: #00ADB5 !important;
-        font-size: 2.8rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 1.5rem !important;
-        text-shadow: 0 0 10px rgba(0, 173, 181, 0.3);
-    }
-    
-    h2 {
-        color: #EEEEEE !important;
-        font-size: 2rem !important;
-        font-weight: 600 !important;
-        margin-top: 2rem !important;
-    }
-    
-    h3 {
-        color: #00ADB5 !important;
-        font-size: 1.5rem !important;
-        font-weight: 600 !important;
-        margin-top: 1.5rem !important;
-        border-left: 4px solid #00ADB5;
-        padding-left: 1rem;
-    }
-    
-    /* Code blocks */
-    .stCodeBlock {
-        background-color: #2B2B2B !important;
-        border-radius: 12px !important;
-        padding: 1.5rem !important;
-        margin: 1.5rem 0 !important;
-        border: 1px solid #393E46;
-    }
-    
-    /* Text areas */
-    .stTextArea textarea {
-        background-color: #2B2B2B !important;
-        color: #EEEEEE !important;
-        border-radius: 12px !important;
-        border: 1px solid #393E46 !important;
-        padding: 1rem !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.95rem !important;
-    }
-    
-    .stTextArea textarea:focus {
-        border-color: #00ADB5 !important;
-        box-shadow: 0 0 0 2px rgba(0, 173, 181, 0.2) !important;
-    }
-    
-    /* Buttons */
-    .stButton button {
-        background-color: #00ADB5 !important;
-        color: #EEEEEE !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 0.75rem 2.5rem !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        transition: all 0.3s ease !important;
-        text-transform: uppercase !important;
-        letter-spacing: 1px !important;
-    }
-    
-    .stButton button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 16px rgba(0, 173, 181, 0.2) !important;
-        background-color: #00BEC7 !important;
-    }
-    
-    .stButton button:active {
-        transform: translateY(0) !important;
-    }
-    
-    /* Info boxes */
-    .stAlert {
-        background-color: #393E46 !important;
-        color: #EEEEEE !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
-        margin: 1rem 0 !important;
-        border-left: 4px solid #00ADB5 !important;
-    }
-    
-    /* Sidebar */
-    .css-1d391kg, [data-testid="stSidebar"] {
-        background-color: #393E46 !important;
-        padding: 2rem 1.5rem !important;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 1rem;
-        background-color: #393E46 !important;
-        padding: 1rem !important;
-        border-radius: 12px !important;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent !important;
-        color: #EEEEEE !important;
-        border-radius: 8px !important;
-        padding: 1rem 2rem !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: #00ADB5 !important;
-        color: #EEEEEE !important;
-    }
-    
-    /* Spinners */
-    .stSpinner {
-        text-align: center;
-        padding: 2rem;
-    }
-    
-    /* Select boxes */
-    .stSelectbox select {
-        background-color: #2B2B2B !important;
-        color: #EEEEEE !important;
-        border: 1px solid #393E46 !important;
-        border-radius: 8px !important;
-    }
-    
-    /* Links */
-    a {
-        color: #00ADB5 !important;
-        text-decoration: none !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    a:hover {
-        color: #00BEC7 !important;
-        text-decoration: underline !important;
-    }
-    
-    /* Custom info box */
-    .custom-info-box {
-        background-color: #393E46;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin: 1.5rem 0;
-        border: 1px solid #00ADB5;
-    }
-    
-    .custom-info-box h4 {
-        color: #00ADB5;
-        margin: 0;
-        font-size: 1.2rem;
-    }
-    
-    .custom-info-box p {
-        color: #EEEEEE;
-        margin: 0.5rem 0 0 0;
-        font-size: 0.95rem;
-        line-height: 1.5;
-    }
-    
-    /* High contrast theme */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea {
-        background-color: #1E1E1E !important;
-        color: #FFFFFF !important;
-        font-size: 1.1em !important;
-    }
-    
-    /* Focus indicators */
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus,
-    .stButton > button:focus {
-        outline: 3px solid #0096FF !important;
-        box-shadow: 0 0 0 3px rgba(0, 150, 255, 0.3) !important;
-    }
-    
-    /* Larger click targets */
-    .stButton > button {
-        min-height: 3em !important;
-        font-size: 1.1em !important;
-    }
-    
-    /* Better contrast for tabs */
-    .stTabs [role="tab"] {
-        background-color: #2D2D2D !important;
-        color: #FFFFFF !important;
-        font-size: 1.1em !important;
-        padding: 1em 2em !important;
-    }
-    
-    .stTabs [role="tab"][aria-selected="true"] {
-        background-color: #0096FF !important;
-        border-radius: 4px !important;
-    }
-    
-    /* Improved form labels */
-    label {
-        font-size: 1.2em !important;
-        font-weight: 500 !important;
-        color: #FFFFFF !important;
-        margin-bottom: 0.5em !important;
-    }
-    
-    /* Keyboard focus styles */
-    *:focus {
-        outline: 3px solid #0096FF !important;
-        outline-offset: 2px !important;
-    }
-    
-    /* Accessibility helper classes */
-    .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        border: 0;
-    }
-    
-    /* Better contrast for code blocks */
-    pre {
-        background-color: #1E1E1E !important;
-        border: 1px solid #444444 !important;
-        border-radius: 4px !important;
-    }
-    
-    /* Improved error messages */
-    .stAlert {
-        font-size: 1.1em !important;
-        padding: 1em !important;
-        border-radius: 4px !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 def main():
-    st.title("🤖 AI Auto-Coder")
-    st.subheader("Your AI-powered coding assistant")
+    """Main application entry point."""
+    setup_page()
+    render_header()
     
-    # Sidebar for model selection and API key
+    # Sidebar for configuration
     with st.sidebar:
-        st.header("Model Settings")
-        
-        # Model selection
-        model_type = st.radio("Select Model Type", ["Local", "Cloud"])
-        
-        # Get model list based on type
-        model_list = get_available_models(model_type)
-        
-        if model_type == "Local":
-            if not is_ollama_installed():
-                st.error("""Ollama is not installed or not found in standard locations. Please:
-                1. Make sure Ollama is installed (https://ollama.ai/download)
-                2. Check if Ollama is running (you should see the Ollama icon in your system tray)
-                3. Try restarting Ollama and this app""")
-            elif not model_list:
-                st.warning("No local models found. Please make sure Ollama is running.")
-                try:
-                    # Try to pull codellama
-                    run_ollama_command(['ollama', 'pull', 'codellama'])
-                    st.success("Successfully installed codellama!")
-                    model_list = get_available_models(model_type)
-                except Exception as e:
-                    st.error("Failed to install local model. Please make sure Ollama is running.")
-            st.session_state.api_key = None
-        else:
-            st.info("Cloud models require an API key")
-            api_key = st.text_input("Enter API Key", type="password")
-            st.session_state.api_key = api_key if api_key else None
-        
-        # Select specific model
-        if model_list:
-            selected_model = st.selectbox("Select Model", model_list)
-            
-            # Reinitialize services if model or API key changes
-            if selected_model != st.session_state.selected_model:
-                logger.debug(f"Model changed from {st.session_state.selected_model} to {selected_model}")
-                st.session_state.selected_model = selected_model
-                st.session_state.services_initialized = False
-            
-            # Initialize services button
-            if st.button("Initialize Services"):
-                initialize_services()
-        else:
-            if model_type == "Local":
-                st.error("Please make sure Ollama is installed and running.")
-            else:
-                st.error("No models available. Please check your setup.")
+        render_api_key_section()
+        if 'api_key' in st.session_state and st.session_state.api_key:
+            render_model_selection()
     
-    # Show error if services not initialized
-    if not st.session_state.services_initialized:
-        st.warning("Services not initialized. Please initialize services to continue.")
+    # Main content area
+    if 'api_key' not in st.session_state or not st.session_state.api_key:
+        st.info("👋 Welcome to AI Coder Pro! Please enter your API key to get started.")
         return
     
-    # Constants
-    API_URL = "http://localhost:8000/api"
-    SUPPORTED_LANGUAGES = ["python", "javascript", "java", "cpp", "typescript", "html", "css"]
-    REQUEST_TIMEOUT = 120
-
-    def send_request(endpoint: str, data: Optional[Dict] = None, method: str = "POST") -> Optional[Dict]:
-        """Send a request to the backend service."""
-        try:
-            if method == "GET":
-                if endpoint == "templates":
-                    return st.session_state.template_manager.list_templates()
-                elif endpoint == "languages":
-                    return {"languages": ["python", "javascript", "typescript", "java", "go"]}
-            else:
-                if endpoint == "generate":
-                    return st.session_state.code_generator.generate_code(data["prompt"], data["language"])
-                elif endpoint == "analyze":
-                    return st.session_state.code_analyzer.analyze_code(data["code"], data["language"])
-                elif endpoint == "templates":
-                    if "name" in data:
-                        return st.session_state.template_manager.create_template(data["name"], data["description"], data["code"])
-                    else:
-                        return st.session_state.template_manager.generate_template(data["description"])
-                elif endpoint == "optimize":
-                    return st.session_state.performance_profiler.optimize_performance(data["code"], {})
-                elif endpoint == "generate-docs":
-                    return st.session_state.api_doc_generator.generate_api_documentation([data["code"]], data["doc_format"])
-                elif endpoint == "generate-schema":
-                    return st.session_state.db_schema_generator.generate_schema(data["description"], data["db_type"])
-        
-            return None
-        
-        except requests.exceptions.ConnectionError:
-            st.error("⚠️ Failed to connect to the backend service. Please try again.")
-            return None
-        except Exception as e:
-            st.error(f"⚠️ An error occurred: {str(e)}")
-            return None
+    if not st.session_state.get('services_initialized', False):
+        initialize_services()
+    
+    # Add your main app content here
+    st.markdown("### 🚀 Ready to Code")
+    st.markdown("""
+    <div class='premium-card'>
+        <h4>Premium Features Available:</h4>
+        <ul>
+            <li>🎯 Smart Code Generation</li>
+            <li>📊 Code Analysis & Optimization</li>
+            <li>📝 API Documentation</li>
+            <li>🔍 Performance Profiling</li>
+            <li>🗃️ Database Schema Design</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Load models
     model_types = CodeGenerator.get_model_types()
@@ -561,7 +226,7 @@ def main():
     
     # Load templates
     try:
-        templates_result = send_request("templates", method="GET")
+        templates_result = st.session_state.template_manager.list_templates()
         templates = templates_result.get("templates", []) if templates_result else []
         
         # Collect all unique tags
@@ -578,12 +243,10 @@ def main():
 
     # Load languages
     try:
-        languages = send_request("languages", method="GET")
-        if languages is None:
-            languages = {"languages": SUPPORTED_LANGUAGES}
+        languages = {"languages": ["python", "javascript", "typescript", "java", "go"]}
     except Exception as e:
         logger.error(f"Error loading languages: {str(e)}")
-        languages = {"languages": SUPPORTED_LANGUAGES}
+        languages = {"languages": ["python", "javascript", "typescript", "java", "go"]}
 
     # Main tabs with icons and ARIA labels
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -610,14 +273,11 @@ def main():
         
         if generate_button and prompt:
             with st.spinner("🔮 Generating code..."):
-                result = send_request("generate", {
-                    "prompt": prompt,
-                    "language": selected_language
-                })
+                result = st.session_state.code_generator.generate_code(prompt, "python")
                 
                 if result:
                     st.markdown("### 📝 Generated Code")
-                    st.code(result["code"], language=selected_language)
+                    st.code(result["code"], language="python")
                     if "explanation" in result:
                         st.markdown("### 💡 Explanation")
                         st.info(result["explanation"])
@@ -640,15 +300,12 @@ def main():
             with st.spinner("🔍 Analyzing code... (This may take a few seconds)"):
                 progress_text = st.empty()
                 progress_text.markdown('<span class="sr-only">Analysis in progress...</span>', unsafe_allow_html=True)
-                result = send_request("analyze", {
-                    "code": code_to_analyze,
-                    "language": selected_language
-                })
+                result = st.session_state.code_analyzer.analyze_code(code_to_analyze, "python")
                 
                 if result:
                     if "formatted_code" in result:
                         st.markdown("### 📝 Formatted Code")
-                        st.code(result["formatted_code"], language=selected_language)
+                        st.code(result["formatted_code"], language="python")
                     
                     if "linter_output" in result:
                         st.markdown("### 🔍 Analysis Results")
@@ -676,7 +333,7 @@ def main():
             with col1:
                 filter_language = st.selectbox(
                     "Filter by Language",
-                    ["All"] + languages.get("languages", SUPPORTED_LANGUAGES)
+                    ["All"] + languages.get("languages", ["python", "javascript", "typescript", "java", "go"])
                 )
             
             with col2:
@@ -748,13 +405,7 @@ def main():
                 if st.button("💾 Save Template", use_container_width=True):
                     if all([template_name, template_desc, template_code, template_tags]):
                         try:
-                            result = send_request("templates", {
-                                "name": template_name,
-                                "code": template_code,
-                                "language": selected_language,
-                                "description": template_desc,
-                                "tags": [tag.strip() for tag in template_tags.split(",")]
-                            })
+                            result = st.session_state.template_manager.create_template(template_name, template_desc, template_code, ["python"], [tag.strip() for tag in template_tags.split(",")])
                             
                             if result:
                                 st.success("Template saved successfully!")
@@ -780,10 +431,7 @@ def main():
                     if template_prompt:
                         with st.spinner("🔮 Generating template..."):
                             try:
-                                result = send_request("templates", {
-                                    "description": template_prompt,
-                                    "language": selected_language
-                                })
+                                result = st.session_state.template_manager.generate_template(template_prompt, "python")
                                 
                                 if result:
                                     st.success("Template generated and saved!")
