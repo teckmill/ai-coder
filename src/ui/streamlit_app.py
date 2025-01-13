@@ -40,11 +40,17 @@ st.set_page_config(
 
 def get_available_models(model_type: str) -> List[str]:
     """Get list of available models based on type."""
-    if model_type == "Local":
-        available_models = CodeGenerator.get_available_ollama_models()
-        # Only show models that are configured in LOCAL_MODELS
-        return [model for model in available_models if model in LOCAL_MODELS]
-    else:
+    try:
+        if model_type == "Local":
+            available_models = CodeGenerator.get_available_ollama_models()
+            # Only show models that are configured in LOCAL_MODELS
+            return [model for model in available_models if model in LOCAL_MODELS]
+        else:
+            return list(CLOUD_MODELS.keys())
+    except Exception as e:
+        logger.error(f"Error getting available models: {str(e)}")
+        if model_type == "Local":
+            return list(LOCAL_MODELS.keys())  # Fall back to all configured local models
         return list(CLOUD_MODELS.keys())
 
 # Initialize services

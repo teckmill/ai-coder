@@ -24,8 +24,8 @@ class CodeGenerator(BaseService):
         super().__init__(model_name=model_name, api_key=api_key)
         self.initialize_model()
     
-    @staticmethod
-    def get_available_ollama_models() -> List[str]:
+    @classmethod
+    def get_available_ollama_models(cls) -> List[str]:
         """Get list of available Ollama models on the system."""
         try:
             result = subprocess.run(['ollama', 'list'], capture_output=True, text=True)
