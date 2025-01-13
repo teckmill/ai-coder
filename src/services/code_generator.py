@@ -1,6 +1,9 @@
 from typing import Dict, Optional
 import os
 import logging
+import requests
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+import torch
 from langchain_community.llms import Ollama
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -14,50 +17,110 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+class ModelProvider:
+    """Base class for different model providers."""
+    def generate(self, prompt: str, **kwargs) -> str:
+        raise NotImplementedError
+
+class OpenAIProvider(ModelProvider):
+    """Provider for OpenAI models."""
+    def __init__(self, api_key: str, model: str = "gpt-4-turbo-preview"):
+        import openai
+        self.client = openai.OpenAI(api_key=api_key)
+        self.model = model
+
+    def generate(self, prompt: str, **kwargs) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=kwargs.get('temperature', 0.7),
+            max_tokens=kwargs.get('max_tokens', 2000)
+        )
+        return response.choices[0].message.content
+
+class OllamaProvider(ModelProvider):
+    """Provider for Ollama models."""
+    def __init__(self, model: str = "codellama", host: str = "http://localhost:11434"):
+        self.model = model
+        self.host = host
+
+    def generate(self, prompt: str, **kwargs) -> str:
+        response = requests.post(
+            f"{self.host}/api/generate",
+            json={
+                "model": self.model,
+                "prompt": prompt,
+                "temperature": kwargs.get('temperature', 0.7),
+                "max_tokens": kwargs.get('max_tokens', 2000)
+            }
+        )
+        response.raise_for_status()
+        return response.json()['response']
+
+class HuggingFaceProvider(ModelProvider):
+    """Provider for Hugging Face models."""
+    def __init__(self, model_name: str = "bigcode/starcoder", device: str = "cuda" if torch.cuda.is_available() else "cpu"):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            device_map=device,
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32
+        )
+        self.generator = pipeline(
+            "text-generation",
+            model=self.model,
+            tokenizer=self.tokenizer,
+            device=device
+        )
+
+    def generate(self, prompt: str, **kwargs) -> str:
+        response = self.generator(
+            prompt,
+            max_length=kwargs.get('max_tokens', 2000),
+            temperature=kwargs.get('temperature', 0.7),
+            num_return_sequences=1
+        )
+        return response[0]['generated_text'][len(prompt):]
+
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
-    def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
+    PROVIDER_MAP = {
+        "gpt-4-turbo-preview": (OpenAIProvider, {"requires_key": True}),
+        "gpt-4": (OpenAIProvider, {"requires_key": True}),
+        "gpt-3.5-turbo-16k": (OpenAIProvider, {"requires_key": True}),
+        "gpt-3.5-turbo": (OpenAIProvider, {"requires_key": True}),
+        "codellama": (OllamaProvider, {"requires_key": False}),
+        "llama2": (OllamaProvider, {"requires_key": False}),
+        "starcoder": (HuggingFaceProvider, {"requires_key": False, "model_name": "bigcode/starcoder"}),
+        "codegen": (HuggingFaceProvider, {"requires_key": False, "model_name": "Salesforce/codegen-16B-mono"})
+    }
+
+    def __init__(self, model_name: str = "gpt-4-turbo-preview", api_key: Optional[str] = None):
         """Initialize the code generator service."""
         logger.debug(f"Initializing CodeGenerator with model={model_name}, has_api_key={bool(api_key)}")
         super().__init__(model_name=model_name, api_key=api_key)
-        self.initialize_model()
+        self.provider = self._initialize_provider()
+        self.model_available = True
     
-    def initialize_model(self):
-        """Initialize the appropriate model based on model name."""
-        try:
-            logger.debug(f"Initializing model {self.model_name}")
-            
-            # Check if model is local or cloud-based
-            if self.model_name in LOCAL_MODELS:
-                logger.debug(f"Using local model {self.model_name}")
-                self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
-                self.model_available = True
-            
-            elif self.model_name in CLOUD_MODELS:
-                if not self.api_key:
-                    logger.error("API key required for cloud model but not provided")
-                    raise ValueError(f"API key required for cloud model {self.model_name}")
-                
-                model_config = CLOUD_MODELS[self.model_name]
-                logger.debug(f"Using cloud model {self.model_name} with provider {model_config['provider']}")
-                
-                if model_config['provider'] == 'openai':
-                    self.llm = ChatOpenAI(model_name=self.model_name, temperature=0.1, 
-                                        api_key=self.api_key)
-                    self.model_available = True
-                # Add support for other cloud providers here (anthropic, etc)
-                else:
-                    raise ValueError(f"Unsupported cloud provider for model {self.model_name}")
-            
-            else:
-                raise ValueError(f"Unknown model: {self.model_name}")
-            
-            logger.debug(f"Successfully initialized {self.model_name} model")
-        except Exception as e:
-            logger.error(f"Failed to initialize model: {str(e)}")
-            self.model_available = False
-            raise
+    def _initialize_provider(self) -> ModelProvider:
+        """Initialize the appropriate model provider."""
+        if self.model_name not in self.PROVIDER_MAP:
+            raise ValueError(f"Unsupported model: {self.model_name}")
+
+        provider_class, config = self.PROVIDER_MAP[self.model_name]
+        
+        if config["requires_key"] and not self.api_key:
+            raise ValueError(f"API key required for model: {self.model_name}")
+
+        if provider_class == OpenAIProvider:
+            return provider_class(api_key=self.api_key, model=self.model_name)
+        elif provider_class == OllamaProvider:
+            return provider_class(model=self.model_name)
+        elif provider_class == HuggingFaceProvider:
+            return provider_class(model_name=config.get("model_name", "bigcode/starcoder"))
+        
+        raise ValueError(f"Unknown provider for model: {self.model_name}")
 
     @classmethod
     def get_model_types(cls) -> Dict[str, list]:
@@ -116,7 +179,7 @@ class CodeGenerator(BaseService):
             )
             
             logger.debug("Sending request to model")
-            response = await self.llm.ainvoke(formatted_prompt)
+            response = self.provider.generate(formatted_prompt)
             logger.debug(f"Response received: {response}")
             
             # Parse response to extract code and explanation
@@ -151,3 +214,25 @@ class CodeGenerator(BaseService):
         # Implement the logic to generate code based on the description
         # For now, let's return a placeholder string
         return f"Generated code for: {description}"
+
+    @staticmethod
+    def get_available_models(include_local: bool = False) -> Dict[str, Dict[str, Any]]:
+        """Get available models and their configurations."""
+        models = {
+            "cloud": {
+                "gpt-4-turbo-preview": "Latest & fastest GPT-4 model",
+                "gpt-4": "Most capable GPT-4 model",
+                "gpt-3.5-turbo-16k": "Extended context GPT-3.5",
+                "gpt-3.5-turbo": "Fast and efficient GPT-3.5"
+            }
+        }
+        
+        if include_local:
+            models["local"] = {
+                "codellama": "Meta's CodeLlama model (requires Ollama)",
+                "llama2": "Meta's Llama 2 model (requires Ollama)",
+                "starcoder": "BigCode's StarCoder (requires GPU)",
+                "codegen": "Salesforce CodeGen (requires GPU)"
+            }
+        
+        return models
