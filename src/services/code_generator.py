@@ -5,12 +5,10 @@ from typing import Any, Dict, Optional
 import anthropic
 import openai
 import requests
-import torch
 from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.llms import Ollama
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 from src.config.models import CLOUD_MODELS, LOCAL_MODELS
 from src.services.base_service import BaseService
