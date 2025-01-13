@@ -6,9 +6,10 @@ from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
+
 class CodeMigrator(BaseService):
     """Assists in migrating code between different versions or frameworks."""
-    
+
     def __init__(self):
         """Initialize the code migrator."""
         super().__init__()
@@ -18,19 +19,20 @@ class CodeMigrator(BaseService):
                 "unicode": ("unicode", "str"),
                 "long": ("long", "int"),
                 "raw_input": ("raw_input", "input"),
-                "xrange": ("xrange", "range")
+                "xrange": ("xrange", "range"),
             },
             "react_class_to_hooks": {
                 "lifecycle_methods": {
                     "componentDidMount": "useEffect(() => {}, [])",
                     "componentDidUpdate": "useEffect(() => {})",
-                    "componentWillUnmount": "useEffect(() => { return () => {} }, [])"
+                    "componentWillUnmount": "useEffect(() => { return () => {} }, [])",
                 }
-            }
+            },
         }
-    
-    async def analyze_code(self, code: str, source_version: str, 
-                         target_version: str) -> Dict:
+
+    async def analyze_code(
+        self, code: str, source_version: str, target_version: str
+    ) -> Dict:
         """Analyze code for migration issues."""
         try:
             prompt = f"""Analyze this code for migration from {source_version} to {target_version}:
@@ -56,14 +58,14 @@ class CodeMigrator(BaseService):
             TESTING:
             <notes>
             """
-            
+
             result = await self._get_llm_suggestions(prompt)
-            
+
             # Parse the response
             analysis = {}
             current_section = None
             current_content = []
-            
+
             for line in result["explanation"].split("\n"):
                 if line.endswith(":"):
                     if current_section and current_content:
@@ -72,23 +74,24 @@ class CodeMigrator(BaseService):
                     current_content = []
                 elif line.strip() and current_section:
                     current_content.append(line.strip())
-            
+
             if current_section and current_content:
                 analysis[current_section] = "\n".join(current_content)
-            
+
             return analysis
-            
+
         except Exception as e:
             logger.error(f"Error analyzing code: {str(e)}")
             raise
-    
-    async def migrate_code(self, code: str, source_version: str, 
-                         target_version: str) -> Dict:
+
+    async def migrate_code(
+        self, code: str, source_version: str, target_version: str
+    ) -> Dict:
         """Migrate code to target version."""
         try:
             # First analyze the code
             analysis = await self.analyze_code(code, source_version, target_version)
-            
+
             # Generate migration prompt
             prompt = f"""Migrate this code from {source_version} to {target_version}:
             
@@ -114,14 +117,14 @@ class CodeMigrator(BaseService):
             NOTES:
             <migration_notes>
             """
-            
+
             result = await self._get_llm_suggestions(prompt)
-            
+
             # Parse the response
             migration_result = {}
             current_section = None
             current_content = []
-            
+
             for line in result["explanation"].split("\n"):
                 if line.endswith(":"):
                     if current_section and current_content:
@@ -130,28 +133,31 @@ class CodeMigrator(BaseService):
                     current_content = []
                 elif current_section:
                     current_content.append(line)
-            
+
             if current_section and current_content:
                 migration_result[current_section] = "\n".join(current_content)
-            
+
             # Generate diff
-            diff = list(difflib.unified_diff(
-                code.splitlines(keepends=True),
-                migration_result.get("code", "").splitlines(keepends=True),
-                fromfile=f"original ({source_version})",
-                tofile=f"migrated ({target_version})"
-            ))
-            
+            diff = list(
+                difflib.unified_diff(
+                    code.splitlines(keepends=True),
+                    migration_result.get("code", "").splitlines(keepends=True),
+                    fromfile=f"original ({source_version})",
+                    tofile=f"migrated ({target_version})",
+                )
+            )
+
             migration_result["diff"] = "".join(diff)
-            
+
             return migration_result
-            
+
         except Exception as e:
             logger.error(f"Error migrating code: {str(e)}")
             raise
-    
-    async def generate_migration_guide(self, source_version: str, 
-                                    target_version: str, features: List[str]) -> Dict:
+
+    async def generate_migration_guide(
+        self, source_version: str, target_version: str, features: List[str]
+    ) -> Dict:
         """Generate a migration guide for specific features."""
         try:
             prompt = f"""Create a migration guide from {source_version} to {target_version} 
@@ -176,14 +182,14 @@ class CodeMigrator(BaseService):
             ROLLBACK:
             <procedures>
             """
-            
+
             result = await self._get_llm_suggestions(prompt)
-            
+
             # Parse the response
             guide = {}
             current_section = None
             current_content = []
-            
+
             for line in result["explanation"].split("\n"):
                 if line.endswith(":"):
                     if current_section and current_content:
@@ -192,32 +198,32 @@ class CodeMigrator(BaseService):
                     current_content = []
                 elif current_section:
                     current_content.append(line)
-            
+
             if current_section and current_content:
                 guide[current_section] = "\n".join(current_content)
-            
+
             return guide
-            
+
         except Exception as e:
             logger.error(f"Error generating migration guide: {str(e)}")
             raise
-    
+
     def apply_migration_rules(self, code: str, rule_set: str) -> str:
         """Apply predefined migration rules to code."""
         try:
             rules = self.migration_rules.get(rule_set)
             if not rules:
                 raise ValueError(f"Rule set '{rule_set}' not found")
-            
+
             migrated_code = code
             for rule_name, (old, new) in rules.items():
                 if isinstance(old, str):
                     migrated_code = migrated_code.replace(old, new)
                 elif callable(old):
                     migrated_code = old(migrated_code, new)
-            
+
             return migrated_code
-            
+
         except Exception as e:
             logger.error(f"Error applying migration rules: {str(e)}")
             raise

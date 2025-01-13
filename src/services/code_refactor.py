@@ -2,6 +2,7 @@ from typing import Dict, Optional
 import black
 from langchain_community.llms import Ollama
 
+
 class CodeRefactor:
     def __init__(self):
         self.ollama = Ollama(model="llama3.2:3b")
@@ -21,7 +22,7 @@ class CodeRefactor:
         try:
             # Format code using Black
             formatted_code = black.format_str(code, mode=black.FileMode())
-            
+
             # Get AI suggestions for refactoring
             refactor_prompt = f"""
             Suggest improvements for this Python code to make it more efficient and maintainable:
@@ -36,9 +37,9 @@ class CodeRefactor:
             
             Provide the refactored code and explain the changes.
             """
-            
+
             ai_response = self.ollama(refactor_prompt)
-            
+
             # Parse AI response to extract code and explanation
             parts = ai_response.split("```python")
             if len(parts) > 1:
@@ -47,13 +48,13 @@ class CodeRefactor:
             else:
                 refactored_code = formatted_code
                 explanation = ai_response
-            
+
             return {
                 "code": refactored_code,
                 "explanation": explanation,
-                "suggestions": self._parse_refactor_suggestions(ai_response)
+                "suggestions": self._parse_refactor_suggestions(ai_response),
             }
-            
+
         except Exception as e:
             raise Exception(f"Python refactoring failed: {str(e)}")
 
@@ -73,9 +74,9 @@ class CodeRefactor:
             
             Provide the refactored code and explain the changes.
             """
-            
+
             ai_response = self.ollama(refactor_prompt)
-            
+
             # Parse AI response
             parts = ai_response.split(f"```{language}")
             if len(parts) > 1:
@@ -84,13 +85,13 @@ class CodeRefactor:
             else:
                 refactored_code = code
                 explanation = ai_response
-            
+
             return {
                 "code": refactored_code,
                 "explanation": explanation,
-                "suggestions": self._parse_refactor_suggestions(ai_response)
+                "suggestions": self._parse_refactor_suggestions(ai_response),
             }
-            
+
         except Exception as e:
             raise Exception(f"Generic refactoring failed: {str(e)}")
 
@@ -98,22 +99,20 @@ class CodeRefactor:
         """Parse AI refactoring suggestions into structured format"""
         suggestions = []
         current_suggestion = ""
-        
+
         for line in ai_output.split("\n"):
             if line.strip().startswith(("- ", "* ", "1. ")):
                 if current_suggestion:
-                    suggestions.append({
-                        "type": "refactor",
-                        "message": current_suggestion.strip()
-                    })
+                    suggestions.append(
+                        {"type": "refactor", "message": current_suggestion.strip()}
+                    )
                 current_suggestion = line.strip().lstrip("- *123456789. ")
             elif current_suggestion and line.strip():
                 current_suggestion += " " + line.strip()
-        
+
         if current_suggestion:
-            suggestions.append({
-                "type": "refactor",
-                "message": current_suggestion.strip()
-            })
-            
+            suggestions.append(
+                {"type": "refactor", "message": current_suggestion.strip()}
+            )
+
         return suggestions

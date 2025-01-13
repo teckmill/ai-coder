@@ -5,9 +5,10 @@ from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
+
 class CodeOptimizer(BaseService):
     """Service for optimizing code performance and structure."""
-    
+
     def optimize_code(self, code: str, language: str) -> Dict:
         """Optimize code for better performance."""
         try:
@@ -25,23 +26,23 @@ class CodeOptimizer(BaseService):
             
             Provide specific, actionable suggestions and optimized code.
             """
-            
+
             response = self._get_llm_suggestions(prompt)
-            
+
             # Parse static analysis results if Python
             static_analysis = {}
             if language.lower() == "python":
                 static_analysis = self._analyze_python_code(code)
-            
+
             return {
                 "optimized_code": response.get("code", ""),
                 "optimization_notes": response.get("explanation", ""),
-                "static_analysis": static_analysis
+                "static_analysis": static_analysis,
             }
         except Exception as e:
             logger.error(f"Error in code optimization: {str(e)}", exc_info=True)
             raise
-    
+
     def _analyze_python_code(self, code: str) -> Dict:
         """Perform static analysis on Python code."""
         try:
@@ -49,13 +50,13 @@ class CodeOptimizer(BaseService):
             analysis = {
                 "complexity": self._analyze_complexity(tree),
                 "memory_usage": self._analyze_memory_usage(tree),
-                "bottlenecks": self._find_bottlenecks(tree)
+                "bottlenecks": self._find_bottlenecks(tree),
             }
             return analysis
         except Exception as e:
             logger.error(f"Error in Python code analysis: {str(e)}", exc_info=True)
             return {}
-    
+
     def _analyze_complexity(self, tree: ast.AST) -> List[Dict]:
         """Analyze code complexity."""
         issues = []
@@ -64,13 +65,15 @@ class CodeOptimizer(BaseService):
             if isinstance(node, (ast.For, ast.While)):
                 for child in ast.walk(node):
                     if isinstance(child, (ast.For, ast.While)) and child is not node:
-                        issues.append({
-                            "type": "complexity",
-                            "message": "Nested loop detected - consider optimization",
-                            "node": node
-                        })
+                        issues.append(
+                            {
+                                "type": "complexity",
+                                "message": "Nested loop detected - consider optimization",
+                                "node": node,
+                            }
+                        )
         return issues
-    
+
     def _analyze_memory_usage(self, tree: ast.AST) -> List[Dict]:
         """Analyze potential memory issues."""
         issues = []
@@ -78,13 +81,15 @@ class CodeOptimizer(BaseService):
             # Check for large list comprehensions
             if isinstance(node, ast.ListComp):
                 if len(list(ast.walk(node))) > 10:
-                    issues.append({
-                        "type": "memory",
-                        "message": "Large list comprehension - consider generator expression",
-                        "node": node
-                    })
+                    issues.append(
+                        {
+                            "type": "memory",
+                            "message": "Large list comprehension - consider generator expression",
+                            "node": node,
+                        }
+                    )
         return issues
-    
+
     def _find_bottlenecks(self, tree: ast.AST) -> List[Dict]:
         """Identify potential performance bottlenecks."""
         issues = []

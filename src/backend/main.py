@@ -38,34 +38,41 @@ security_scanner = SecurityScanner()
 git_helper = GitHelper()
 template_manager = TemplateManager()
 
+
 # Request/Response Models
 class CodeRequest(BaseModel):
     code: str
     language: str
+
 
 class OptimizeRequest(BaseModel):
     code: str
     language: str
     optimization_level: Optional[str] = "medium"
 
+
 class TestRequest(BaseModel):
     code: str
     language: str
     test_framework: Optional[str] = "pytest"
+
 
 class DocRequest(BaseModel):
     code: str
     language: str
     doc_format: Optional[str] = "markdown"
 
+
 class SecurityRequest(BaseModel):
     code: str
     language: str
     scan_level: Optional[str] = "high"
 
+
 class GitRequest(BaseModel):
     diff: str
     scope: Optional[str] = None
+
 
 class TemplateRequest(BaseModel):
     name: str
@@ -74,15 +81,18 @@ class TemplateRequest(BaseModel):
     description: str
     tags: List[str]
 
+
 class TemplateUpdateRequest(BaseModel):
     name: str
     code: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[List[str]] = None
 
+
 class TemplateGenerateRequest(BaseModel):
     description: str
     language: str
+
 
 @app.get("/")
 async def root():
@@ -90,8 +100,9 @@ async def root():
     return {
         "name": "AI Auto-Coder API",
         "version": "2.0.0",
-        "description": "AI-powered code generation and analysis"
+        "description": "AI-powered code generation and analysis",
     }
+
 
 @app.post("/api/generate")
 async def generate_code(request: CodeRequest):
@@ -102,6 +113,7 @@ async def generate_code(request: CodeRequest):
         logger.error(f"Error in code generation: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/analyze")
 async def analyze_code(request: CodeRequest):
     """Analyze code and provide suggestions."""
@@ -110,6 +122,7 @@ async def analyze_code(request: CodeRequest):
     except Exception as e:
         logger.error(f"Error in code analysis: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/optimize")
 async def optimize_code(request: OptimizeRequest):
@@ -120,6 +133,7 @@ async def optimize_code(request: OptimizeRequest):
         logger.error(f"Error in code optimization: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/generate-docs")
 async def generate_docs(request: DocRequest):
     """Generate documentation for code."""
@@ -128,6 +142,7 @@ async def generate_docs(request: DocRequest):
     except Exception as e:
         logger.error(f"Error in documentation generation: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/generate-tests")
 async def generate_tests(request: TestRequest):
@@ -138,6 +153,7 @@ async def generate_tests(request: TestRequest):
         logger.error(f"Error in test generation: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/security-scan")
 async def security_scan(request: SecurityRequest):
     """Scan code for security vulnerabilities."""
@@ -146,6 +162,7 @@ async def security_scan(request: SecurityRequest):
     except Exception as e:
         logger.error(f"Error in security scanning: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/commit-message")
 async def generate_commit_message(request: GitRequest):
@@ -156,6 +173,7 @@ async def generate_commit_message(request: GitRequest):
         logger.error(f"Error generating commit message: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/review-comments")
 async def generate_review_comments(request: GitRequest):
     """Generate code review comments from diff."""
@@ -164,6 +182,7 @@ async def generate_review_comments(request: GitRequest):
     except Exception as e:
         logger.error(f"Error generating review comments: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/templates")
 async def get_templates(language: Optional[str] = None, tag: Optional[str] = None):
@@ -174,6 +193,7 @@ async def get_templates(language: Optional[str] = None, tag: Optional[str] = Non
         logger.error(f"Error getting templates: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/api/templates/{name}")
 async def get_template(name: str):
     """Get a specific template by name."""
@@ -181,6 +201,7 @@ async def get_template(name: str):
     if template:
         return template
     raise HTTPException(status_code=404, detail="Template not found")
+
 
 @app.post("/api/templates")
 async def create_template(request: TemplateRequest):
@@ -191,24 +212,23 @@ async def create_template(request: TemplateRequest):
             code=request.code,
             language=request.language,
             description=request.description,
-            tags=request.tags
+            tags=request.tags,
         )
     except Exception as e:
         logger.error(f"Error creating template: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.put("/api/templates/{name}")
 async def update_template(name: str, request: TemplateUpdateRequest):
     """Update an existing template."""
     template = template_manager.update_template(
-        name=name,
-        code=request.code,
-        description=request.description,
-        tags=request.tags
+        name=name, code=request.code, description=request.description, tags=request.tags
     )
     if template:
         return template
     raise HTTPException(status_code=404, detail="Template not found")
+
 
 @app.delete("/api/templates/{name}")
 async def delete_template(name: str):
@@ -217,17 +237,18 @@ async def delete_template(name: str):
         return {"message": "Template deleted"}
     raise HTTPException(status_code=404, detail="Template not found")
 
+
 @app.post("/api/templates/generate")
 async def generate_template(request: TemplateGenerateRequest):
     """Generate a new template using AI."""
     try:
         return await template_manager.generate_template(
-            description=request.description,
-            language=request.language
+            description=request.description, language=request.language
         )
     except Exception as e:
         logger.error(f"Error generating template: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

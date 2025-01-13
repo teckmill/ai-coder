@@ -4,9 +4,10 @@ from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
+
 class GitHelper(BaseService):
     """Service for Git-related operations and suggestions."""
-    
+
     def generate_commit_message(self, diff: str) -> Dict:
         """Generate a meaningful commit message from code changes."""
         try:
@@ -28,18 +29,18 @@ class GitHelper(BaseService):
             - Detailed description
             - Footer with metadata
             """
-            
+
             response = self._get_llm_suggestions(prompt)
-            
+
             return {
                 "commit_message": response.get("explanation", ""),
                 "type": self._determine_commit_type(diff),
-                "scope": self._determine_commit_scope(diff)
+                "scope": self._determine_commit_scope(diff),
             }
         except Exception as e:
             logger.error(f"Error generating commit message: {str(e)}", exc_info=True)
             raise
-    
+
     def suggest_code_review_comments(self, diff: str) -> Dict:
         """Generate helpful code review comments."""
         try:
@@ -56,18 +57,18 @@ class GitHelper(BaseService):
             
             Provide specific, actionable review comments.
             """
-            
+
             response = self._get_llm_suggestions(prompt)
-            
+
             return {
                 "review_comments": response.get("explanation", ""),
                 "suggestions": response.get("code", ""),
-                "priority": self._determine_review_priority(diff)
+                "priority": self._determine_review_priority(diff),
             }
         except Exception as e:
             logger.error(f"Error generating review comments: {str(e)}", exc_info=True)
             raise
-    
+
     def _determine_commit_type(self, diff: str) -> str:
         """Determine the type of commit (feat, fix, etc.)."""
         if "test" in diff.lower():
@@ -78,7 +79,7 @@ class GitHelper(BaseService):
             return "docs"
         else:
             return "feat"
-    
+
     def _determine_commit_scope(self, diff: str) -> Optional[str]:
         """Determine the scope of the commit."""
         if "test" in diff.lower():
@@ -88,7 +89,7 @@ class GitHelper(BaseService):
         elif "ui" in diff.lower():
             return "ui"
         return None
-    
+
     def _determine_review_priority(self, diff: str) -> str:
         """Determine the priority of the code review."""
         if "security" in diff.lower() or "auth" in diff.lower():

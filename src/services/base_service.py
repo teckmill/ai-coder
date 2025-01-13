@@ -4,9 +4,10 @@ from langchain_community.llms import Ollama
 
 logger = logging.getLogger(__name__)
 
+
 class BaseService:
     """Base class for AI services with model selection."""
-    
+
     MODELS = {
         "codellama": {
             "name": "codellama",
@@ -16,13 +17,13 @@ class BaseService:
                 "Code completion and generation",
                 "Multiple programming languages",
                 "Technical documentation",
-                "Code analysis"
+                "Code analysis",
             ],
             "setup": """
             1. Install Ollama: https://ollama.ai/
             2. Run: ollama pull codellama
             3. Start the model with: ollama run codellama
-            """
+            """,
         },
         "llama2": {
             "name": "llama2",
@@ -32,13 +33,13 @@ class BaseService:
                 "Natural language understanding",
                 "Context-aware responses",
                 "Knowledge-based tasks",
-                "Instruction following"
+                "Instruction following",
             ],
             "setup": """
             1. Install Ollama: https://ollama.ai/
             2. Run: ollama pull llama2
             3. Start the model with: ollama run llama2
-            """
+            """,
         },
         "mistral": {
             "name": "mistral",
@@ -48,13 +49,13 @@ class BaseService:
                 "Fast inference",
                 "High-quality output",
                 "Long context understanding",
-                "Technical tasks"
+                "Technical tasks",
             ],
             "setup": """
             1. Install Ollama: https://ollama.ai/
             2. Run: ollama pull mistral
             3. Start the model with: ollama run mistral
-            """
+            """,
         },
         "deepseek-coder": {
             "name": "deepseek-coder",
@@ -64,14 +65,14 @@ class BaseService:
                 "Code generation",
                 "Bug fixing",
                 "Code explanation",
-                "Technical documentation"
+                "Technical documentation",
             ],
             "setup": """
             1. Install Ollama: https://ollama.ai/
             2. Run: ollama pull deepseek-coder
             3. Start the model with: ollama run deepseek-coder
-            """
-        }
+            """,
+        },
     }
 
     def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
@@ -96,7 +97,7 @@ class BaseService:
         """Change the current model."""
         if model_name not in self.MODELS:
             raise ValueError(f"Unknown model: {model_name}")
-        
+
         self.model_name = model_name
         self._init_model()
 
