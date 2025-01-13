@@ -50,7 +50,7 @@ def main():
         # Display features in a more organized way
         st.subheader("Features")
         for category in ['basic', 'code_intelligence', 'security', 'testing', 'performance', 'collaboration', 'project', 'devops', 'ai_workflow']:
-            features = [f for f in tier.features if f in PricingManager.FEATURES.get(category, [])]
+            features = [f for f in tier.features if f['category'] == category]
             if features:
                 st.markdown(f"**{category.replace('_', ' ').title()}**")
                 for feature in features:
@@ -60,7 +60,7 @@ def main():
         
         # Display limits with progress bars
         st.subheader("Usage Limits")
-        usage = st.session_state.usage_tracker.get_current_usage()
+        usage = st.session_state.usage_tracker.get_monthly_usage()
         for limit_name, limit_value in tier.limits.items():
             if limit_value == float("inf"):
                 st.write(f"✨ {limit_name.replace('_', ' ').title()}: Unlimited")
@@ -93,14 +93,32 @@ def main():
                             code = generator.generate_code(code_input, language.lower())
                             st.code(code, language=language.lower())
                             
-                            # Track usage
-                            st.session_state.usage_tracker.track_request(
-                                request_type="code_generation",
-                                tokens_used=len(code_input.split()) + len(code.split()),
-                                model_used="gpt-4"
+                            # Track usage and analytics
+                            st.session_state.usage_tracker.add_usage(
+                                model="gpt-4",
+                                input_tokens=len(code_input.split()),
+                                output_tokens=len(code.split()),
+                                request_type="code_generation"
+                            )
+                            st.session_state.analytics.track_event(
+                                "code_generation",
+                                {
+                                    "language": language.lower(),
+                                    "input_length": len(code_input),
+                                    "output_length": len(code),
+                                    "success": True
+                                }
                             )
                         except Exception as e:
                             st.error(f"Error generating code: {str(e)}")
+                            st.session_state.analytics.track_event(
+                                "code_generation",
+                                {
+                                    "language": language.lower(),
+                                    "error": str(e),
+                                    "success": False
+                                }
+                            )
                 else:
                     st.warning("Please enter a description of what you want to build")
     
@@ -113,44 +131,55 @@ def main():
         # Usage Overview
         st.subheader("Usage Overview")
         col1, col2, col3 = st.columns(3)
+        
+        monthly_usage = st.session_state.usage_tracker.get_monthly_usage()
         with col1:
             st.metric(
-                "Requests Used",
-                f"{usage.get('total_requests', 0):,}",
-                f"{usage.get('total_requests', 0) - usage.get('previous_requests', 0):+,}"
+                "Total Requests",
+                f"{monthly_usage.get('total_requests', 0):,}",
+                delta=None
             )
         with col2:
             st.metric(
-                "Tokens Used",
-                f"{usage.get('total_tokens', 0):,}",
-                f"{usage.get('total_tokens', 0) - usage.get('previous_tokens', 0):+,}"
+                "Total Tokens",
+                f"{monthly_usage.get('total_tokens', 0):,}",
+                delta=None
             )
         with col3:
             st.metric(
-                "Cost Estimate",
-                f"${insights['cost_analysis']['total_cost']:.2f}",
-                f"${insights['cost_analysis']['avg_daily_cost']:.2f}/day"
+                "Success Rate",
+                f"{insights.get('productivity_metrics', {}).get('success_rate', 0):.1f}%",
+                delta=None
             )
         
-        # Detailed Analytics
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Usage Patterns")
-            st.write("Peak Hours:", insights["usage_patterns"]["peak_hours"])
-            st.write("Busy Days:", insights["usage_patterns"]["busy_days"])
-            st.write(f"Avg Session Length: {insights['usage_patterns']['avg_session_length']:.1f} min")
+        # Language Preferences
+        if 'language_preferences' in insights:
+            st.subheader("Language Preferences")
+            lang_prefs = insights['language_preferences']
+            for lang, stats in lang_prefs.get('success_rates', {}).items():
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**{lang.title()}**")
+                with col2:
+                    st.progress(stats['rate'] / 100)
+                    st.write(f"Success Rate: {stats['rate']:.1f}% ({stats['total']} requests)")
         
-        with col2:
-            st.subheader("Performance Metrics")
-            st.write(f"Success Rate: {insights['productivity_metrics']['success_rate']:.1f}%")
-            st.write(f"Avg Generation Time: {insights['productivity_metrics']['avg_generation_time']:.1f}s")
-            st.write(f"Code Quality Score: {insights['productivity_metrics']['avg_code_quality']:.1f}/10")
+        # Performance Metrics
+        if 'productivity_metrics' in insights:
+            st.subheader("Performance")
+            metrics = insights['productivity_metrics']
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Avg Response Time", f"{metrics.get('avg_generation_time', 0):.1f}s")
+            with col2:
+                st.metric("Code Quality Score", f"{metrics.get('avg_code_quality', 0):.1f}/10")
         
         # Recommendations
         st.subheader("Recommendations")
         for rec in st.session_state.analytics.get_recommendations():
-            with st.expander(f"{rec['priority'].upper()}: {rec['message']}"):
-                st.write(f"Suggested Action: {rec['action']}")
+            with st.expander(f"{rec['priority'].upper()}: {rec['title']}"):
+                st.write(rec['message'])
+                st.info(f"Suggested Action: {rec['action']}")
     
     with tab3:
         st.header("Settings")
