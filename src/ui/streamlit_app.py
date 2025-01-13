@@ -1,5 +1,6 @@
 import streamlit as st
 import logging
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 import sys
@@ -22,6 +23,41 @@ from src.services.db_schema_generator import DBSchemaGenerator
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def check_ollama_models() -> List[str]:
+    """Check which Ollama models are available locally."""
+    try:
+        result = subprocess.run(['ollama', 'list'], capture_output=True, text=True)
+        if result.returncode == 0:
+            # Parse the output to get model names
+            models = []
+            for line in result.stdout.split('\n')[1:]:  # Skip header line
+                if line.strip():
+                    model_name = line.split()[0]  # First column is model name
+                    models.append(model_name)
+            logger.debug(f"Found local models: {models}")
+            return models
+        else:
+            logger.warning("Failed to get Ollama models list")
+            return []
+    except Exception as e:
+        logger.error(f"Error checking Ollama models: {str(e)}")
+        return []
+
+def get_available_models(model_type: str) -> List[str]:
+    """Get list of available models based on type."""
+    try:
+        if model_type == "Local":
+            available_models = check_ollama_models()
+            # Only show models that are configured in LOCAL_MODELS
+            return [model for model in available_models if model in LOCAL_MODELS]
+        else:
+            return list(CLOUD_MODELS.keys())
+    except Exception as e:
+        logger.error(f"Error getting available models: {str(e)}")
+        if model_type == "Local":
+            return list(LOCAL_MODELS.keys())  # Fall back to all configured local models
+        return list(CLOUD_MODELS.keys())
+
 # Initialize session state for storing API key and model selection
 if 'api_key' not in st.session_state:
     st.session_state.api_key = None
@@ -37,21 +73,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-def get_available_models(model_type: str) -> List[str]:
-    """Get list of available models based on type."""
-    try:
-        if model_type == "Local":
-            available_models = CodeGenerator.get_available_ollama_models()
-            # Only show models that are configured in LOCAL_MODELS
-            return [model for model in available_models if model in LOCAL_MODELS]
-        else:
-            return list(CLOUD_MODELS.keys())
-    except Exception as e:
-        logger.error(f"Error getting available models: {str(e)}")
-        if model_type == "Local":
-            return list(LOCAL_MODELS.keys())  # Fall back to all configured local models
-        return list(CLOUD_MODELS.keys())
 
 # Initialize services
 def initialize_services():
@@ -343,9 +364,11 @@ def main():
         
         if model_type == "Local":
             if not model_list:
-                st.warning("No local models found. Installing codellama...")
+                st.warning("No local models found. Please make sure Ollama is installed and running.")
                 try:
-                    CodeGenerator.get_available_ollama_models()  # This will attempt to pull codellama
+                    # Try to pull codellama
+                    subprocess.run(['ollama', 'pull', 'codellama'], check=True)
+                    st.success("Successfully installed codellama!")
                     model_list = get_available_models(model_type)
                 except Exception as e:
                     st.error("Failed to install local model. Please make sure Ollama is installed and running.")
