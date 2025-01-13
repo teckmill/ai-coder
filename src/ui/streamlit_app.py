@@ -21,14 +21,13 @@ from src.services.db_schema_generator import DBSchemaGenerator
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize services
-code_generator = CodeGenerator()
-code_analyzer = CodeAnalyzer()
-template_manager = TemplateManager()
-project_generator = ProjectGenerator()
-api_doc_generator = APIDocGenerator()
-performance_profiler = PerformanceProfiler()
-db_schema_generator = DBSchemaGenerator()
+# Initialize session state for storing API key and model selection
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = None
+if 'selected_model' not in st.session_state:
+    st.session_state.selected_model = "codellama"
+if 'services_initialized' not in st.session_state:
+    st.session_state.services_initialized = False
 
 # Configure page
 st.set_page_config(
@@ -37,6 +36,24 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Initialize services
+def initialize_services():
+    try:
+        st.session_state.code_generator = CodeGenerator(
+            model_name=st.session_state.selected_model,
+            api_key=st.session_state.api_key
+        )
+        st.session_state.code_analyzer = CodeAnalyzer()
+        st.session_state.template_manager = TemplateManager()
+        st.session_state.project_generator = ProjectGenerator()
+        st.session_state.api_doc_generator = APIDocGenerator()
+        st.session_state.performance_profiler = PerformanceProfiler()
+        st.session_state.db_schema_generator = DBSchemaGenerator()
+        st.session_state.services_initialized = True
+    except Exception as e:
+        st.error(f"Error initializing services: {str(e)}")
+        st.session_state.services_initialized = False
 
 # Custom CSS
 st.markdown("""
@@ -285,62 +302,78 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Add accessibility information at the top
-st.markdown("""
-<div class="accessibility-info" role="complementary" aria-label="Keyboard Shortcuts">
-    <details>
-        <summary style="font-size: 1.2em; color: #0096FF;">⌨️ Keyboard Shortcuts & Accessibility Guide</summary>
-        <ul style="margin-top: 10px;">
-            <li><kbd>Alt + 1-7</kbd> - Switch between tabs</li>
-            <li><kbd>Ctrl + Enter</kbd> - Submit current form</li>
-            <li><kbd>Ctrl + /</kbd> - Focus search/help</li>
-            <li><kbd>Esc</kbd> - Clear current selection</li>
-        </ul>
-        <p>💡 All features are screen-reader friendly and keyboard navigable.</p>
-    </details>
-</div>
-""", unsafe_allow_html=True)
-
-# Constants
-API_URL = "http://localhost:8000/api"
-SUPPORTED_LANGUAGES = ["python", "javascript", "java", "cpp", "typescript", "html", "css"]
-REQUEST_TIMEOUT = 120
-
-def send_request(endpoint: str, data: Optional[Dict] = None, method: str = "POST") -> Optional[Dict]:
-    """Send a request to the backend service."""
-    try:
-        if method == "GET":
-            if endpoint == "templates":
-                return template_manager.list_templates()
-            elif endpoint == "languages":
-                return {"languages": ["python", "javascript", "typescript", "java", "go"]}
-        else:
-            if endpoint == "generate":
-                return code_generator.generate_code(data["prompt"], data["language"])
-            elif endpoint == "analyze":
-                return code_analyzer.analyze_code(data["code"], data["language"])
-            elif endpoint == "templates":
-                if "name" in data:
-                    return template_manager.create_template(data["name"], data["description"], data["code"])
-                else:
-                    return template_manager.generate_template(data["description"])
-            elif endpoint == "optimize":
-                return performance_profiler.optimize_performance(data["code"], {})
-            elif endpoint == "generate-docs":
-                return api_doc_generator.generate_api_documentation([data["code"]], data["doc_format"])
-            elif endpoint == "generate-schema":
-                return db_schema_generator.generate_schema(data["description"], data["db_type"])
-        
-        return None
-        
-    except requests.exceptions.ConnectionError:
-        st.error("⚠️ Failed to connect to the backend service. Please try again.")
-        return None
-    except Exception as e:
-        st.error(f"⚠️ An error occurred: {str(e)}")
-        return None
-
 def main():
+    st.title("🤖 AI Auto-Coder")
+    st.subheader("Your AI-powered coding assistant")
+    
+    # Sidebar for model selection and API key
+    with st.sidebar:
+        st.header("Model Settings")
+        
+        # Model selection
+        model_type = st.radio("Select Model Type", ["Free", "Premium"])
+        
+        if model_type == "Free":
+            available_models = CodeGenerator.AVAILABLE_MODELS["free"]
+        else:
+            available_models = CodeGenerator.AVAILABLE_MODELS["premium"]
+            st.info("Premium models require an API key")
+            api_key = st.text_input("Enter API Key", type="password")
+            if api_key:
+                st.session_state.api_key = api_key
+        
+        selected_model = st.selectbox("Select Model", available_models)
+        
+        if selected_model != st.session_state.selected_model:
+            st.session_state.selected_model = selected_model
+            st.session_state.services_initialized = False
+        
+        if not st.session_state.services_initialized:
+            initialize_services()
+    
+    if not st.session_state.services_initialized:
+        st.error("Services not initialized. Please check your model settings and API key if using a premium model.")
+        return
+    
+    # Constants
+    API_URL = "http://localhost:8000/api"
+    SUPPORTED_LANGUAGES = ["python", "javascript", "java", "cpp", "typescript", "html", "css"]
+    REQUEST_TIMEOUT = 120
+
+    def send_request(endpoint: str, data: Optional[Dict] = None, method: str = "POST") -> Optional[Dict]:
+        """Send a request to the backend service."""
+        try:
+            if method == "GET":
+                if endpoint == "templates":
+                    return st.session_state.template_manager.list_templates()
+                elif endpoint == "languages":
+                    return {"languages": ["python", "javascript", "typescript", "java", "go"]}
+            else:
+                if endpoint == "generate":
+                    return st.session_state.code_generator.generate_code(data["prompt"], data["language"])
+                elif endpoint == "analyze":
+                    return st.session_state.code_analyzer.analyze_code(data["code"], data["language"])
+                elif endpoint == "templates":
+                    if "name" in data:
+                        return st.session_state.template_manager.create_template(data["name"], data["description"], data["code"])
+                    else:
+                        return st.session_state.template_manager.generate_template(data["description"])
+                elif endpoint == "optimize":
+                    return st.session_state.performance_profiler.optimize_performance(data["code"], {})
+                elif endpoint == "generate-docs":
+                    return st.session_state.api_doc_generator.generate_api_documentation([data["code"]], data["doc_format"])
+                elif endpoint == "generate-schema":
+                    return st.session_state.db_schema_generator.generate_schema(data["description"], data["db_type"])
+        
+            return None
+        
+        except requests.exceptions.ConnectionError:
+            st.error("⚠️ Failed to connect to the backend service. Please try again.")
+            return None
+        except Exception as e:
+            st.error(f"⚠️ An error occurred: {str(e)}")
+            return None
+
     # Load models
     available_models = BaseService.get_available_models()
     
@@ -387,59 +420,6 @@ def main():
     except Exception as e:
         logger.error(f"Error loading languages: {str(e)}")
         languages = {"languages": SUPPORTED_LANGUAGES}
-
-    # Sidebar
-    with st.sidebar:
-        st.markdown("""
-        <div class='sidebar-content'>
-            <h1>⚙️ Settings</h1>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Model selection
-        model_name = st.selectbox(
-            "🤖 AI Model",
-            list(available_models.keys()),
-            help="Select the AI model to use"
-        )
-        
-        # Show model info
-        with st.expander("ℹ️ Model Information"):
-            model_info = available_models[model_name]
-            st.markdown(f"**Description:** {model_info['description']}")
-            st.markdown("**Strengths:**")
-            for strength in model_info["strengths"]:
-                st.markdown(f"- {strength}")
-            st.markdown("**Setup Instructions:**")
-            st.code(model_info["setup"], language="bash")
-        
-        # Language selection
-        selected_language = st.selectbox(
-            "🔤 Programming Language",
-            languages.get("languages", SUPPORTED_LANGUAGES),
-            help="Select the programming language for code generation and analysis"
-        )
-        
-        st.markdown("---")
-        
-        st.markdown("""
-        <div class='custom-info-box'>
-            <h4>💡 About</h4>
-            <p>
-                AI Auto-Coder uses advanced local LLM technology to help you write better code.
-                All processing is done locally on your machine for enhanced privacy and security.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Initialize services with selected model
-    code_generator = CodeGenerator(model_name=model_name)
-    code_analyzer = CodeAnalyzer(model_name=model_name)
-    template_manager = TemplateManager(model_name=model_name)
-    project_generator = ProjectGenerator(model_name=model_name)
-    api_doc_generator = APIDocGenerator(model_name=model_name)
-    performance_profiler = PerformanceProfiler(model_name=model_name)
-    db_schema_generator = DBSchemaGenerator(model_name=model_name)
 
     # Main tabs with icons and ARIA labels
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([

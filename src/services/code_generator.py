@@ -2,6 +2,7 @@ from typing import Dict, Optional
 import os
 import logging
 from langchain_community.llms import Ollama
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 from src.services.base_service import BaseService
@@ -15,22 +16,45 @@ load_dotenv()
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
-    def __init__(self, model_name: str = "codellama"):
+    AVAILABLE_MODELS = {
+        "free": ["codellama", "llama2", "mistral"],
+        "premium": ["gpt-4", "gpt-3.5-turbo", "claude-2"]
+    }
+    
+    def __init__(self, model_name: str = "codellama", api_key: Optional[str] = None):
         """Initialize the code generator service."""
         super().__init__(model_name=model_name)
+        self.model_name = model_name
+        self.api_key = api_key
+        self.initialize_model()
+    
+    def initialize_model(self):
+        """Initialize the appropriate model based on model name."""
         try:
-            self.ollama = Ollama(model=model_name, temperature=0.1, timeout=120)
+            if self.model_name in self.AVAILABLE_MODELS["free"]:
+                self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
+            elif self.model_name in self.AVAILABLE_MODELS["premium"]:
+                if not self.api_key:
+                    raise ValueError(f"API key required for premium model {self.model_name}")
+                if "gpt" in self.model_name:
+                    self.llm = ChatOpenAI(model_name=self.model_name, temperature=0.1, 
+                                        api_key=self.api_key)
+                # Add support for other premium models here
+            else:
+                raise ValueError(f"Unsupported model: {self.model_name}")
+            
             self.model_available = True
-            logger.debug("Successfully initialized Ollama model")
+            logger.debug(f"Successfully initialized {self.model_name} model")
         except Exception as e:
-            logger.error(f"Failed to initialize Ollama: {str(e)}")
+            logger.error(f"Failed to initialize model: {str(e)}")
             self.model_available = False
+            raise
 
     async def generate(self, prompt: str, language: str = "python") -> Dict:
-        """Generate code based on the prompt using Ollama"""
+        """Generate code based on the prompt using the selected model"""
         try:
             if not self.model_available:
-                raise Exception("Ollama is not available. Please make sure it's installed and running.")
+                raise Exception("Model is not available. Please make sure it's installed and running.")
                 
             template = """
             You are an expert web developer specializing in modern, beautiful web design. Generate code based on the following prompt.
@@ -74,8 +98,8 @@ class CodeGenerator(BaseService):
                 prompt=prompt
             )
             
-            logger.debug("Sending request to Ollama")
-            response = await self.ollama.ainvoke(formatted_prompt)
+            logger.debug("Sending request to model")
+            response = await self.llm.ainvoke(formatted_prompt)
             logger.debug(f"Response received: {response}")
             
             # Parse response to extract code and explanation
@@ -93,7 +117,7 @@ class CodeGenerator(BaseService):
                     "explanation": explanation
                 }
             else:
-                logger.error("Failed to parse Ollama response")
+                logger.error("Failed to parse model response")
                 return {
                     "code": "Error: Could not generate code",
                     "explanation": "Failed to parse the model's response"
