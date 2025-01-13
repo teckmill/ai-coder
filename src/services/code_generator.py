@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional
 
 import anthropic
 import openai
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import requests
 from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
@@ -129,7 +131,7 @@ class CodeGenerator(BaseService):
     def __init__(
         self,
         user_id: str,
-        tier: str = "free",
+        tier: str = "hobby",
         model_name: str = "ai_coder_v1",
         api_key: Optional[str] = None,
     ):
@@ -179,6 +181,11 @@ class CodeGenerator(BaseService):
             return provider_class(api_key=self.api_key, model=self.model_name)
         elif provider_class == AnthropicProvider:
             return provider_class(api_key=self.api_key, model=self.model_name)
+        elif provider_class == AiCoderModel:
+            model_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "models/ai_coder_v1"
+            )
+            return provider_class(model_path=model_path)
 
         raise ValueError(f"Unknown provider for model: {self.model_name}")
 
