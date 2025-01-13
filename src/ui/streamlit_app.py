@@ -1,276 +1,167 @@
-import streamlit as st
-import logging
-from typing import Optional
+"""Streamlit UI for AI Coder."""
+import sys
 import os
+
+# Add the project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import streamlit as st
+from src.services.pricing import PricingManager
+from src.services.usage_tracker import UsageTracker
 from src.services.code_generator import CodeGenerator
-from src.services.code_analyzer import CodeAnalyzer
-from src.services.template_manager import TemplateManager
-from src.services.project_generator import ProjectGenerator
-from src.services.api_doc_generator import APIDocGenerator
-from src.services.performance_profiler import PerformanceProfiler
-from src.services.db_schema_generator import DBSchemaGenerator
-from src.services.pricing_manager import PricingManager
+from src.services.analytics import UsageAnalytics
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-# Constants
-CLOUD_MODELS = [
-    "gpt-4-turbo-preview",
-    "gpt-4",
-    "gpt-3.5-turbo-16k",
-    "gpt-3.5-turbo",
-]
-
-MODEL_FEATURES = {
-    "gpt-4-turbo-preview": {
-        "name": "GPT-4 Turbo",
-        "description": "Latest & fastest GPT-4 model",
-        "features": [
-            "128k context window",
-            "Most up-to-date knowledge",
-            "Fastest response time",
-            "Best for complex projects"
-        ],
-        "icon": "🚀"
-    },
-    "gpt-4": {
-        "name": "GPT-4",
-        "description": "Most capable GPT-4 model",
-        "features": [
-            "32k context window",
-            "Highest accuracy",
-            "Best for critical code",
-            "Advanced reasoning"
-        ],
-        "icon": "🧠"
-    },
-    "gpt-3.5-turbo-16k": {
-        "name": "GPT-3.5 Turbo 16K",
-        "description": "Extended context GPT-3.5",
-        "features": [
-            "16k context window",
-            "Balanced performance",
-            "Good for larger files",
-            "Cost-effective"
-        ],
-        "icon": "💪"
-    },
-    "gpt-3.5-turbo": {
-        "name": "GPT-3.5 Turbo",
-        "description": "Fast and efficient",
-        "features": [
-            "4k context window",
-            "Fastest model",
-            "Most cost-effective",
-            "Great for quick tasks"
-        ],
-        "icon": "⚡"
-    }
-}
-
-def load_css():
-    """Load custom CSS."""
-    with open(os.path.join(os.path.dirname(__file__), 'styles', 'main.css')) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-def setup_page():
-    """Configure the Streamlit page settings."""
+def main():
     st.set_page_config(
-        page_title="AI Coder Pro",
+        page_title="AI Coder",
         page_icon="🤖",
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    load_css()
 
-def render_header():
-    """Render the app header."""
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown('<h1>🤖 AI Coder <span style="font-size: 0.5em; vertical-align: middle; background: linear-gradient(45deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PRO</span></h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Transform your ideas into production-ready code with AI</p>', unsafe_allow_html=True)
-    with col2:
-        if 'api_key' in st.session_state and st.session_state.api_key:
-            st.markdown('<div class="status-premium">✨ Premium Active</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="status-warning">🔑 API Key Required</div>', unsafe_allow_html=True)
-
-def render_api_key_section():
-    """Render the API key input section."""
+    st.title("AI Coder 🚀")
+    
+    # Initialize session state
+    if 'user_id' not in st.session_state:
+        st.session_state.user_id = 'demo_user'  # In production, this would be the actual user ID
+    
+    if 'analytics' not in st.session_state:
+        st.session_state.analytics = UsageAnalytics(st.session_state.user_id)
+    
+    if 'usage_tracker' not in st.session_state:
+        st.session_state.usage_tracker = UsageTracker(st.session_state.user_id)
+    
+    # Sidebar for pricing and features
     with st.sidebar:
-        st.markdown("### 🔐 Authentication")
-        with st.expander("Configure API Key", expanded='api_key' not in st.session_state):
-            premium_details = PricingManager.get_premium_details()
-            
-            st.markdown(f"""
-            <div class='premium-card'>
-                <div class="feature-icon">✨</div>
-                <h3>Premium Access - ${premium_details['price']}/month</h3>
-                <p>Enter your OpenAI API key to unlock all features:</p>
-                <div style="margin: 1rem 0;">
-                    {''.join(f'<div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;"><span>{f["icon"]}</span> <strong>{f["name"]}</strong></div>' for f in premium_details['features'])}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            api_key = st.text_input(
-                "OpenAI API Key",
-                type="password",
-                value=st.session_state.get('api_key', ''),
-                help="Your OpenAI API key is required for premium features"
-            )
-            
-            if api_key:
-                if PricingManager.is_valid_api_key(api_key):
-                    st.session_state.api_key = api_key
-                    st.success("✅ Premium access activated!")
-                else:
-                    st.error("❌ Invalid API key. Please check and try again.")
-
-def render_model_selection():
-    """Render the model selection section."""
-    with st.sidebar:
-        st.markdown("### 🎯 Model Selection")
-        
-        for model_id in CLOUD_MODELS:
-            model = MODEL_FEATURES[model_id]
-            st.markdown(f"""
-            <div class='model-card' onclick="this.classList.toggle('selected')">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.5rem;">{model['icon']}</span>
-                    <h4>{model['name']}</h4>
-                </div>
-                <p>{model['description']}</p>
-                <div style="margin-top: 0.75rem; font-size: 0.8rem;">
-                    {''.join(f'<div style="margin: 0.25rem 0;">• {feature}</div>' for feature in model['features'])}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        selected_model = st.selectbox(
-            "Select Model",
-            options=CLOUD_MODELS,
-            format_func=lambda x: MODEL_FEATURES[x]['name'],
-            index=0
+        st.header("Pricing Plans")
+        selected_tier = st.selectbox(
+            "Select your plan",
+            options=list(PricingManager.PRICING_TIERS.keys()),
+            format_func=lambda x: PricingManager.PRICING_TIERS[x].name
         )
-        st.session_state.selected_model = selected_model
-
-def render_main_content():
-    """Render the main content area."""
-    if 'api_key' not in st.session_state or not st.session_state.api_key:
-        st.markdown("""
-        <div class='premium-card animate-fade-in'>
-            <div style="text-align: center;">
-                <div class="feature-icon">👋</div>
-                <h2>Welcome to AI Coder Pro!</h2>
-                <p>Get started by adding your API key in the sidebar.</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-
-    tabs = st.tabs([
-        "🎯 Code Generation",
-        "🔍 Code Analysis",
-        "📝 Documentation",
-        "⚡ Performance",
-        "🗃️ Database Schema"
-    ])
-
-    with tabs[0]:
-        st.markdown("### Generate Code")
-        col1, col2 = st.columns([2, 1])
         
+        # Display tier details
+        tier = PricingManager.PRICING_TIERS[selected_tier]
+        st.subheader(f"{tier.badge} {tier.name} - ${tier.price}/month")
+        st.write(tier.description)
+        
+        # Display features in a more organized way
+        st.subheader("Features")
+        for category in ['basic', 'code_intelligence', 'security', 'testing', 'performance', 'collaboration', 'project', 'devops', 'ai_workflow']:
+            features = [f for f in tier.features if f in PricingManager.FEATURES.get(category, [])]
+            if features:
+                st.markdown(f"**{category.replace('_', ' ').title()}**")
+                for feature in features:
+                    st.write(f"{feature['icon']} {feature['name']}")
+                    with st.expander("Learn more"):
+                        st.write(feature['description'])
+        
+        # Display limits with progress bars
+        st.subheader("Usage Limits")
+        usage = st.session_state.usage_tracker.get_current_usage()
+        for limit_name, limit_value in tier.limits.items():
+            if limit_value == float("inf"):
+                st.write(f"✨ {limit_name.replace('_', ' ').title()}: Unlimited")
+            else:
+                current_value = usage.get(limit_name, 0)
+                progress = min(1.0, current_value / limit_value)
+                st.write(f"{limit_name.replace('_', ' ').title()}")
+                st.progress(progress)
+                st.write(f"{current_value:,} / {limit_value:,}")
+
+    # Main content area
+    tab1, tab2, tab3 = st.tabs(["Code Generation", "Analytics", "Settings"])
+    
+    with tab1:
+        st.header("Code Generation")
+        code_input = st.text_area("Describe what you want to build", height=150)
+        
+        col1, col2 = st.columns([3, 1])
         with col1:
-            prompt = st.text_area(
-                "Describe what you want to build",
-                height=150,
-                placeholder="Example: Create a Python function that sorts a list using quicksort algorithm"
+            language = st.selectbox(
+                "Programming Language",
+                ["Python", "JavaScript", "TypeScript", "Java", "Go", "PHP", "Ruby", "C#"]
             )
-            
-            col_lang, col_btn = st.columns([2, 1])
-            with col_lang:
-                language = st.selectbox(
-                    "Programming Language",
-                    ["Python", "JavaScript", "TypeScript", "Java", "Go"]
-                )
-            with col_btn:
-                generate_btn = st.button("Generate Code", use_container_width=True)
+        with col2:
+            if st.button("Generate Code", use_container_width=True):
+                if code_input:
+                    with st.spinner("Generating code..."):
+                        try:
+                            generator = CodeGenerator()
+                            code = generator.generate_code(code_input, language.lower())
+                            st.code(code, language=language.lower())
+                            
+                            # Track usage
+                            st.session_state.usage_tracker.track_request(
+                                request_type="code_generation",
+                                tokens_used=len(code_input.split()) + len(code.split()),
+                                model_used="gpt-4"
+                            )
+                        except Exception as e:
+                            st.error(f"Error generating code: {str(e)}")
+                else:
+                    st.warning("Please enter a description of what you want to build")
+    
+    with tab2:
+        st.header("Analytics")
+        
+        # Get analytics data
+        insights = st.session_state.analytics.get_usage_insights(days=30)
+        
+        # Usage Overview
+        st.subheader("Usage Overview")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(
+                "Requests Used",
+                f"{usage.get('total_requests', 0):,}",
+                f"{usage.get('total_requests', 0) - usage.get('previous_requests', 0):+,}"
+            )
+        with col2:
+            st.metric(
+                "Tokens Used",
+                f"{usage.get('total_tokens', 0):,}",
+                f"{usage.get('total_tokens', 0) - usage.get('previous_tokens', 0):+,}"
+            )
+        with col3:
+            st.metric(
+                "Cost Estimate",
+                f"${insights['cost_analysis']['total_cost']:.2f}",
+                f"${insights['cost_analysis']['avg_daily_cost']:.2f}/day"
+            )
+        
+        # Detailed Analytics
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Usage Patterns")
+            st.write("Peak Hours:", insights["usage_patterns"]["peak_hours"])
+            st.write("Busy Days:", insights["usage_patterns"]["busy_days"])
+            st.write(f"Avg Session Length: {insights['usage_patterns']['avg_session_length']:.1f} min")
         
         with col2:
-            st.markdown("""
-            <div class='premium-card'>
-                <h4>💡 Tips for better results:</h4>
-                <ul>
-                    <li>Be specific about the functionality</li>
-                    <li>Mention edge cases to handle</li>
-                    <li>Specify any dependencies</li>
-                    <li>Include performance requirements</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-
-        if generate_btn and prompt:
-            with st.spinner("🔮 Generating your code..."):
-                try:
-                    result = st.session_state.code_generator.generate_code(prompt, language.lower())
-                    
-                    st.markdown("### 📝 Generated Code")
-                    st.code(result["code"], language=language.lower())
-                    
-                    st.markdown("""
-                    <div class='premium-card'>
-                        <h4>🚀 What's next?</h4>
-                        <ul>
-                            <li>Review the generated code</li>
-                            <li>Test edge cases</li>
-                            <li>Optimize if needed</li>
-                            <li>Generate documentation</li>
-                        </ul>
-                    </div>
-                    """, unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Error generating code: {str(e)}")
-
-def initialize_services():
-    """Initialize the application services."""
-    try:
-        if not st.session_state.api_key:
-            raise ValueError("Please configure your OpenAI API key to access premium features.")
+            st.subheader("Performance Metrics")
+            st.write(f"Success Rate: {insights['productivity_metrics']['success_rate']:.1f}%")
+            st.write(f"Avg Generation Time: {insights['productivity_metrics']['avg_generation_time']:.1f}s")
+            st.write(f"Code Quality Score: {insights['productivity_metrics']['avg_code_quality']:.1f}/10")
         
-        st.session_state.code_generator = CodeGenerator(
-            model_name=st.session_state.selected_model,
-            api_key=st.session_state.api_key
-        )
-        
-        st.session_state.code_analyzer = CodeAnalyzer()
-        st.session_state.template_manager = TemplateManager()
-        st.session_state.project_generator = ProjectGenerator()
-        st.session_state.api_doc_generator = APIDocGenerator()
-        st.session_state.performance_profiler = PerformanceProfiler()
-        st.session_state.db_schema_generator = DBSchemaGenerator()
-        
-        st.session_state.services_initialized = True
-        logger.debug("Services initialized successfully")
-    except Exception as e:
-        logger.error(f"Error initializing services: {str(e)}")
-        st.error(f"Error initializing services: {str(e)}")
-        st.session_state.services_initialized = False
-
-def main():
-    """Main application entry point."""
-    setup_page()
-    render_header()
-    render_api_key_section()
+        # Recommendations
+        st.subheader("Recommendations")
+        for rec in st.session_state.analytics.get_recommendations():
+            with st.expander(f"{rec['priority'].upper()}: {rec['message']}"):
+                st.write(f"Suggested Action: {rec['action']}")
     
-    if 'api_key' in st.session_state and st.session_state.api_key:
-        render_model_selection()
-        if not st.session_state.get('services_initialized', False):
-            initialize_services()
-    
-    render_main_content()
+    with tab3:
+        st.header("Settings")
+        api_key = st.text_input("API Key", type="password", help="Enter your OpenAI or Anthropic API key")
+        if st.button("Save Settings"):
+            if api_key:
+                # In production, we would securely store the API key
+                st.session_state.api_key = api_key
+                st.success("Settings saved successfully!")
+            else:
+                st.error("Please enter your API key")
 
 if __name__ == "__main__":
     main()
