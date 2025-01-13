@@ -1,9 +1,11 @@
-from typing import Dict, List, Optional
 import ast
-import black
 import logging
-from langchain_community.llms import Ollama
+from typing import Dict, List, Optional
+
+import black
 from langchain.prompts import PromptTemplate
+from langchain_community.llms import Ollama
+
 from .base_service import BaseService
 
 # Set up logging

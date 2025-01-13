@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
+
 from src.services import code_generator
 
 code_generator = code_generator.CodeGenerator()

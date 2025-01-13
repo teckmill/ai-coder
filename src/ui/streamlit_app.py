@@ -1,22 +1,23 @@
 """Streamlit UI for AI Coder - ChatGPT-like interface."""
 
-import sys
 import os
-import streamlit as st
-from datetime import datetime
+import sys
 import uuid
+from datetime import datetime
+
+import streamlit as st
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.services.pricing import PricingManager
-from src.services.usage_tracker import UsageTracker
-from src.services.code_generator import CodeGenerator
 from src.services.analytics import UsageAnalytics
 from src.services.code_analyzer import CodeAnalyzer
+from src.services.code_generator import CodeGenerator
 from src.services.code_refactor import CodeRefactor
+from src.services.pricing import PricingManager
+from src.services.usage_tracker import UsageTracker
 
 
 # Custom CSS for ChatGPT-like interface

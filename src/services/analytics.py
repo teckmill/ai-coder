@@ -1,11 +1,11 @@
 """Advanced analytics and insights for AI Coder."""
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 import json
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

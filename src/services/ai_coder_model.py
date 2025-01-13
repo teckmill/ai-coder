@@ -1,17 +1,14 @@
 """AI Coder model implementation."""
 
+import logging
 import os
 import sys
-import logging
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional, Dict, Any
-from transformers import (
-    PreTrainedModel,
-    PreTrainedTokenizer,
-    AutoTokenizer,
-    AutoModelForCausalLM,
-)
+from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
+                          PreTrainedTokenizer)
 
 # Add project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

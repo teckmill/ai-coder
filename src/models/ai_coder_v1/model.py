@@ -2,7 +2,7 @@
 
 import torch
 import torch.nn as nn
-from transformers import PreTrainedModel, PretrainedConfig
+from transformers import PretrainedConfig, PreTrainedModel
 
 
 class AiCoderConfig(PretrainedConfig):

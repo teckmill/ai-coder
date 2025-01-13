@@ -1,17 +1,18 @@
+import logging
+from typing import Dict, List, Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Dict, List
-import logging
 
-from src.services.code_generator import CodeGenerator
 from src.services.code_analyzer import CodeAnalyzer
+from src.services.code_generator import CodeGenerator
 from src.services.code_optimizer import CodeOptimizer
 from src.services.doc_generator import DocGenerator
-from src.services.test_generator import TestGenerator
-from src.services.security_scanner import SecurityScanner
 from src.services.git_helper import GitHelper
+from src.services.security_scanner import SecurityScanner
 from src.services.template_manager import TemplateManager
+from src.services.test_generator import TestGenerator
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)

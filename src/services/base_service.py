@@ -1,5 +1,6 @@
-from typing import Dict, Optional
 import logging
+from typing import Dict, Optional
+
 from langchain_community.llms import Ollama
 
 logger = logging.getLogger(__name__)

@@ -1,8 +1,8 @@
 """Pricing and subscription management for AI Coder."""
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
 
 
 @dataclass
