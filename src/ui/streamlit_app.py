@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.base_service import BaseService
-from src.services.code_generator import CodeGenerator
+from src.services.code_generator import CodeGenerator, LOCAL_MODELS, CLOUD_MODELS
 from src.services.code_analyzer import CodeAnalyzer
 from src.services.template_manager import TemplateManager
 from src.services.project_generator import ProjectGenerator
@@ -20,10 +20,6 @@ from src.services.db_schema_generator import DBSchemaGenerator
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-# Define available models
-FREE_MODELS = ["codellama", "llama2", "mistral"]
-PREMIUM_MODELS = ["gpt-4", "gpt-3.5-turbo", "claude-2"]
 
 # Initialize session state for storing API key and model selection
 if 'api_key' not in st.session_state:
@@ -49,7 +45,7 @@ def initialize_services():
         # Initialize code generator
         st.session_state.code_generator = CodeGenerator(
             model_name=st.session_state.selected_model,
-            api_key=st.session_state.api_key
+            api_key=st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
         )
         
         # Initialize other services
@@ -323,16 +319,16 @@ def main():
         st.header("Model Settings")
         
         # Model selection
-        model_type = st.radio("Select Model Type", ["Free", "Premium"])
+        model_type = st.radio("Select Model Type", ["Local", "Cloud"])
         
         # Get model list based on type
-        if model_type == "Free":
-            model_list = FREE_MODELS
-            # Clear API key if switching to free model
+        if model_type == "Local":
+            model_list = list(LOCAL_MODELS.keys())
+            # Clear API key if switching to local model
             st.session_state.api_key = None
         else:
-            model_list = PREMIUM_MODELS
-            st.info("Premium models require an API key")
+            model_list = list(CLOUD_MODELS.keys())
+            st.info("Cloud models require an API key")
             api_key = st.text_input("Enter API Key", type="password")
             st.session_state.api_key = api_key if api_key else None
         

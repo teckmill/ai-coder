@@ -13,6 +13,19 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+# Define model configurations
+LOCAL_MODELS = {
+    "codellama": {"provider": "ollama", "name": "codellama"},
+    "llama2": {"provider": "ollama", "name": "llama2"},
+    "mistral": {"provider": "ollama", "name": "mistral"}
+}
+
+CLOUD_MODELS = {
+    "gpt-4": {"provider": "openai", "name": "gpt-4"},
+    "gpt-3.5-turbo": {"provider": "openai", "name": "gpt-3.5-turbo"},
+    "claude-2": {"provider": "anthropic", "name": "claude-2"}
+}
+
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
@@ -26,25 +39,32 @@ class CodeGenerator(BaseService):
     def initialize_model(self):
         """Initialize the appropriate model based on model name."""
         try:
-            logger.debug(f"Initializing model {self.model_name} (api_key_present={bool(self.api_key)})")
+            logger.debug(f"Initializing model {self.model_name}")
             
-            # Check if model requires API key
-            requires_api_key = any(name in self.model_name for name in ["gpt", "claude"])
+            # Check if model is local or cloud-based
+            if self.model_name in LOCAL_MODELS:
+                logger.debug(f"Using local model {self.model_name}")
+                self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
+                self.model_available = True
             
-            if requires_api_key:
+            elif self.model_name in CLOUD_MODELS:
                 if not self.api_key:
-                    logger.error("API key required but not provided")
-                    raise ValueError(f"API key required for model {self.model_name}")
-                logger.debug("Using model with API key")
-                if "gpt" in self.model_name:
+                    logger.error("API key required for cloud model but not provided")
+                    raise ValueError(f"API key required for cloud model {self.model_name}")
+                
+                model_config = CLOUD_MODELS[self.model_name]
+                logger.debug(f"Using cloud model {self.model_name} with provider {model_config['provider']}")
+                
+                if model_config['provider'] == 'openai':
                     self.llm = ChatOpenAI(model_name=self.model_name, temperature=0.1, 
                                         api_key=self.api_key)
                     self.model_available = True
-                # Add support for other premium models here
+                # Add support for other cloud providers here (anthropic, etc)
+                else:
+                    raise ValueError(f"Unsupported cloud provider for model {self.model_name}")
+            
             else:
-                logger.debug("Using model with Ollama")
-                self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
-                self.model_available = True
+                raise ValueError(f"Unknown model: {self.model_name}")
             
             logger.debug(f"Successfully initialized {self.model_name} model")
         except Exception as e:
@@ -56,8 +76,8 @@ class CodeGenerator(BaseService):
     def get_model_types(cls) -> Dict[str, list]:
         """Get the available model types and their corresponding models."""
         return {
-            "Free": ["codellama", "llama2", "mistral"],
-            "Premium": ["gpt-4", "gpt-3.5-turbo", "claude-2"]
+            "Local": list(LOCAL_MODELS.keys()),
+            "Cloud": list(CLOUD_MODELS.keys())
         }
 
     async def generate(self, prompt: str, language: str = "python") -> Dict:
