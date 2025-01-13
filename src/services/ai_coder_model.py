@@ -19,10 +19,6 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
 
 class ModelConfig:
     """Configuration for the AI Coder model."""
@@ -39,11 +35,11 @@ class ModelConfig:
 class ModelProvider:
     """Base class for model providers."""
 
-    def generate(self, prompt: str, **kwargs) -> str:
+    def generate(self, prompt: str, **kwargs):
         raise NotImplementedError
 
 
-class AiCoderModel(ModelProvider):
+class AiCoderModel:
     """AI Coder model implementation."""
 
     def __init__(self, model_path: Optional[str] = None):
@@ -64,136 +60,89 @@ class AiCoderModel(ModelProvider):
             logger.error(f"Failed to load AI Coder model: {str(e)}")
             raise
 
-    def _setup_device(self) -> str:
+    def _setup_device(self):
         """Set up the device for model inference."""
         if torch.cuda.is_available():
-            return "cuda"
-        elif torch.backends.mps.is_available():
-            return "mps"
-        return "cpu"
+            device = torch.device("cuda")
+            logger.info("Using CUDA for model inference")
+        else:
+            device = torch.device("cpu")
+            logger.info("Using CPU for model inference")
+        return device
 
-    def _get_default_model_path(self) -> str:
+    def _get_default_model_path(self):
         """Get the default path for model weights."""
-        return os.path.join(project_root, "src", "models", "ai_coder_v1")
+        from config.models import LOCAL_MODELS
 
-    def _load_model(self) -> PreTrainedModel:
+        if "ai_coder_v1" in LOCAL_MODELS:
+            return LOCAL_MODELS["ai_coder_v1"]
+        else:
+            # Fallback to CodeLlama if local model not found
+            return "codellama/CodeLlama-7b-hf"
+
+    def _load_model(self):
         """Load and configure the model with optimizations."""
         try:
-            model_path = os.path.join(self.model_path)
-            if not os.path.exists(model_path):
-                raise ValueError(f"Model path not found: {model_path}")
-
-            # Try loading with AutoModelForCausalLM first
-            try:
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_path, trust_remote_code=True, use_cache=True
-                )
-            except Exception as e:
-                logger.warning(f"Failed to load with AutoModelForCausalLM: {str(e)}")
-                # Fallback to CodeLlama model
-                model = AutoModelForCausalLM.from_pretrained(
-                    "codellama/CodeLlama-7b-Python",
-                    trust_remote_code=True,
-                    use_cache=True,
-                )
-                # Save it locally for future use
-                model.save_pretrained(model_path)
-
-            # Enable model optimizations
-            if hasattr(model.config, "use_cache"):
-                model.config.use_cache = True
-            if hasattr(model.config, "gradient_checkpointing"):
-                model.config.gradient_checkpointing = True
-            if hasattr(model.config, "use_memory_efficient_attention"):
-                model.config.use_memory_efficient_attention = True
-
-            # Enable model parallelism if multiple GPUs are available
-            if torch.cuda.device_count() > 1:
-                model = torch.nn.DataParallel(model)
-
-            model.to(self.device)
+            model = AutoModelForCausalLM.from_pretrained(
+                self.model_path,
+                torch_dtype=(
+                    torch.float16 if torch.cuda.is_available() else torch.float32
+                ),
+                device_map="auto" if torch.cuda.is_available() else None,
+                trust_remote_code=True,
+            )
+            model.eval()
             return model
-
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.error(f"Error loading model from {self.model_path}: {str(e)}")
             raise
 
-    def _load_tokenizer(self) -> PreTrainedTokenizer:
+    def _load_tokenizer(self):
         """Load and configure the tokenizer."""
         try:
-            # First try loading from local path
-            tokenizer_path = os.path.join(self.model_path, "tokenizer")
-            if os.path.exists(tokenizer_path):
-                tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-            else:
-                # If no local tokenizer, use CodeLlama's tokenizer as base
-                tokenizer = AutoTokenizer.from_pretrained(
-                    "codellama/CodeLlama-7b-Python",
-                    trust_remote_code=True,
-                    padding_side="left",
-                )
-                # Save it locally for future use
-                tokenizer.save_pretrained(tokenizer_path)
-
-            # Add special tokens for code
-            special_tokens = {
-                "additional_special_tokens": [
-                    "<code>",
-                    "</code>",
-                    "<python>",
-                    "</python>",
-                    "<javascript>",
-                    "</javascript>",
-                    "<error>",
-                    "</error>",
-                    "<suggestion>",
-                    "</suggestion>",
-                ]
-            }
-            tokenizer.add_special_tokens(special_tokens)
-
-            # Ensure padding token exists
-            if tokenizer.pad_token is None:
-                tokenizer.pad_token = tokenizer.eos_token
-
+            tokenizer = AutoTokenizer.from_pretrained(
+                self.model_path,
+                trust_remote_code=True,
+            )
+            tokenizer.pad_token = tokenizer.eos_token
             return tokenizer
-
         except Exception as e:
-            logger.error(f"Error loading tokenizer: {str(e)}")
+            logger.error(f"Error loading tokenizer from {self.model_path}: {str(e)}")
             raise
 
-    def generate(self, prompt: str, **kwargs) -> str:
+    def generate(self, prompt: str, **kwargs):
         """Generate code based on the prompt."""
         try:
-            # Prepare inputs
-            inputs = self.tokenizer(
-                prompt,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=self.config.max_length,
-            ).to(self.device)
+            # Override default config with any provided kwargs
+            generation_config = {
+                "max_length": kwargs.pop("max_length", self.config.max_length),
+                "temperature": kwargs.pop("temperature", self.config.temperature),
+                "top_p": kwargs.pop("top_p", self.config.top_p),
+                "top_k": kwargs.pop("top_k", self.config.top_k),
+                "num_return_sequences": kwargs.pop(
+                    "num_return_sequences", self.config.num_return_sequences
+                ),
+                "do_sample": kwargs.pop("do_sample", self.config.do_sample),
+                "pad_token_id": self.tokenizer.pad_token_id,
+                **kwargs,
+            }
 
-            # Generate
+            # Tokenize input prompt
+            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True)
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+            # Generate response
             with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_length=self.config.max_length,
-                    temperature=kwargs.get("temperature", self.config.temperature),
-                    top_p=kwargs.get("top_p", self.config.top_p),
-                    top_k=kwargs.get("top_k", self.config.top_k),
-                    num_return_sequences=kwargs.get(
-                        "num_return_sequences", self.config.num_return_sequences
-                    ),
-                    do_sample=kwargs.get("do_sample", self.config.do_sample),
-                    pad_token_id=self.tokenizer.pad_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
-                )
+                outputs = self.model.generate(**inputs, **generation_config)
 
-            # Decode and return
-            generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            return generated_text[len(prompt) :]  # Remove the prompt from output
+            # Decode and return the generated text
+            decoded_outputs = [
+                self.tokenizer.decode(output, skip_special_tokens=True)
+                for output in outputs
+            ]
+
+            return decoded_outputs[0] if len(decoded_outputs) == 1 else decoded_outputs
 
         except Exception as e:
-            logger.error(f"Error generating code: {str(e)}")
+            logger.error(f"Error during generation: {str(e)}")
             raise
