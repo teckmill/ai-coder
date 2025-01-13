@@ -2,6 +2,11 @@ import streamlit as st
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+import sys
+from pathlib import Path
+
+# Add the parent directory to the Python path
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.base_service import BaseService
 from src.services.code_generator import CodeGenerator
