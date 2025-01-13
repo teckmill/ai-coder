@@ -1,6 +1,7 @@
 import streamlit as st
 import logging
 import subprocess
+import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 import sys
@@ -23,8 +24,16 @@ from src.services.db_schema_generator import DBSchemaGenerator
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def is_ollama_installed() -> bool:
+    """Check if Ollama is installed and available."""
+    return shutil.which('ollama') is not None
+
 def check_ollama_models() -> List[str]:
     """Check which Ollama models are available locally."""
+    if not is_ollama_installed():
+        logger.warning("Ollama is not installed")
+        return []
+        
     try:
         result = subprocess.run(['ollama', 'list'], capture_output=True, text=True)
         if result.returncode == 0:
@@ -47,6 +56,13 @@ def get_available_models(model_type: str) -> List[str]:
     """Get list of available models based on type."""
     try:
         if model_type == "Local":
+            if not is_ollama_installed():
+                st.error("""Ollama is not installed. Please install it to use local models:
+                1. Visit https://ollama.ai/download
+                2. Download and install Ollama
+                3. Restart the app""")
+                return []
+            
             available_models = check_ollama_models()
             # Only show models that are configured in LOCAL_MODELS
             return [model for model in available_models if model in LOCAL_MODELS]
@@ -78,6 +94,10 @@ st.set_page_config(
 def initialize_services():
     try:
         logger.debug(f"Initializing services with model={st.session_state.selected_model}, has_api_key={bool(st.session_state.api_key)}")
+        
+        # Check if Ollama is installed for local models
+        if st.session_state.selected_model in LOCAL_MODELS and not is_ollama_installed():
+            raise ValueError("Ollama is not installed. Please install it to use local models.")
         
         # Initialize code generator with explicit api_key
         api_key = st.session_state.api_key if st.session_state.selected_model in CLOUD_MODELS else None
@@ -363,15 +383,20 @@ def main():
         model_list = get_available_models(model_type)
         
         if model_type == "Local":
-            if not model_list:
-                st.warning("No local models found. Please make sure Ollama is installed and running.")
+            if not is_ollama_installed():
+                st.error("""Ollama is not installed. To use local models:
+                1. Visit https://ollama.ai/download
+                2. Download and install Ollama
+                3. Restart the app""")
+            elif not model_list:
+                st.warning("No local models found. Please make sure Ollama is running.")
                 try:
                     # Try to pull codellama
                     subprocess.run(['ollama', 'pull', 'codellama'], check=True)
                     st.success("Successfully installed codellama!")
                     model_list = get_available_models(model_type)
                 except Exception as e:
-                    st.error("Failed to install local model. Please make sure Ollama is installed and running.")
+                    st.error("Failed to install local model. Please make sure Ollama is running.")
             st.session_state.api_key = None
         else:
             st.info("Cloud models require an API key")
@@ -392,7 +417,10 @@ def main():
             if st.button("Initialize Services"):
                 initialize_services()
         else:
-            st.error("No models available. Please check your setup.")
+            if model_type == "Local":
+                st.error("Please install Ollama to use local models.")
+            else:
+                st.error("No models available. Please check your setup.")
     
     # Show error if services not initialized
     if not st.session_state.services_initialized:
