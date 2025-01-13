@@ -64,7 +64,7 @@ def initialize_session_state():
         st.session_state.code_analyzer = CodeAnalyzer()
 
     if "code_refactor" not in st.session_state:
-        st.session_state.code_refactor = CodeRefactor(user_id=st.session_state.user_id)
+        st.session_state.code_refactor = CodeRefactor()
 
     if "analytics" not in st.session_state:
         st.session_state.analytics = UsageAnalytics(st.session_state.user_id)
