@@ -27,17 +27,45 @@ logger = logging.getLogger(__name__)
 
 def get_ollama_path() -> Optional[str]:
     """Get the path to Ollama executable on Windows."""
+    # First try the PATH
+    ollama_in_path = shutil.which('ollama')
+    if ollama_in_path:
+        logger.debug(f"Found Ollama in PATH: {ollama_in_path}")
+        return ollama_in_path
+    
+    # Then check standard install locations
     possible_paths = [
-        os.path.expandvars(r"%LocalAppData%\Programs\Ollama\ollama.exe"),  # Default Windows install location
+        os.path.expandvars(r"%LocalAppData%\Programs\Ollama\ollama.exe"),
+        os.path.join(os.path.expandvars(r"%LocalAppData%"), "Programs", "Windsurf", "bin", "ollama.exe"),
         os.path.expandvars(r"%ProgramFiles%\Ollama\ollama.exe"),
         os.path.expandvars(r"%ProgramFiles(x86)%\Ollama\ollama.exe"),
-        shutil.which('ollama')  # Check system PATH
     ]
     
-    for path in possible_paths:
+    # Log the expanded paths we're checking
+    logger.debug("Checking these paths for Ollama:")
+    for i, path in enumerate(possible_paths):
+        logger.debug(f"{i+1}. {path}")
         if path and os.path.isfile(path):
             logger.debug(f"Found Ollama at: {path}")
             return path
+        else:
+            if not path:
+                logger.debug(f"Path {i+1} is None or empty")
+            elif not os.path.exists(os.path.dirname(path)):
+                logger.debug(f"Directory does not exist: {os.path.dirname(path)}")
+            elif not os.path.isfile(path):
+                logger.debug(f"File does not exist: {path}")
+    
+    # Try running 'where ollama' as a final fallback
+    try:
+        result = subprocess.run(['where', 'ollama'], capture_output=True, text=True)
+        if result.returncode == 0:
+            path = result.stdout.strip().split('\n')[0]
+            if os.path.isfile(path):
+                logger.debug(f"Found Ollama using 'where' command: {path}")
+                return path
+    except Exception as e:
+        logger.debug(f"Error running 'where ollama': {e}")
     
     logger.warning("Ollama not found in standard locations")
     return None
