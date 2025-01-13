@@ -61,17 +61,13 @@ def initialize_session_state():
         st.session_state.usage_tracker = UsageTracker(st.session_state.user_id)
 
     if "code_generator" not in st.session_state:
-        st.session_state.code_generator = CodeGenerator(
-            user_id=st.session_state.user_id
-        )
+        st.session_state.code_generator = CodeGenerator(user_id=st.session_state.user_id)
 
     if "code_analyzer" not in st.session_state:
-        st.session_state.code_analyzer = CodeAnalyzer(
-            user_id=st.session_state.user_id)
+        st.session_state.code_analyzer = CodeAnalyzer(user_id=st.session_state.user_id)
 
     if "code_refactor" not in st.session_state:
-        st.session_state.code_refactor = CodeRefactor(
-            user_id=st.session_state.user_id)
+        st.session_state.code_refactor = CodeRefactor(user_id=st.session_state.user_id)
 
 
 def display_message(message):
@@ -115,7 +111,7 @@ def display_error_analysis(error_results):
             with st.expander(f"Error {idx}"):
                 st.markdown(f"**Error Type:** {error_details['type']}")
                 st.markdown(f"**Description:** {error_details['description']}")
-                st.code(error_details['code_snippet'], language="python")
+                st.code(error_details["code_snippet"], language="python")
 
 
 def display_sidebar():
@@ -132,11 +128,7 @@ def display_sidebar():
         "GPT-3.5 Turbo": "gpt_3_5_turbo",
         "Claude-3": "claude_3",
     }
-    selected_model = st.sidebar.selectbox(
-        "Choose a model",
-        options=list(model_options.keys()),
-        index=0
-    )
+    selected_model = st.sidebar.selectbox("Choose a model", options=list(model_options.keys()), index=0)
     st.session_state.model = model_options[selected_model]
 
     # Current Plan
@@ -147,57 +139,41 @@ def display_sidebar():
         format_func=lambda x: PricingManager.PRICING_TIERS[x].name,
     )
     tier = PricingManager.PRICING_TIERS[selected_tier]
-    st.sidebar.markdown(
-        f"<h4>{tier.badge} {tier.name}</h4>",
-        unsafe_allow_html=True
-    )
-    st.sidebar.markdown(
-        f"<p>${tier.price}/month</p>",
-        unsafe_allow_html=True
-    )
+    st.sidebar.markdown(f"<h4>{tier.badge} {tier.name}</h4>", unsafe_allow_html=True)
+    st.sidebar.markdown(f"<p>${tier.price}/month</p>", unsafe_allow_html=True)
 
     # Usage
     st.sidebar.markdown("### 📊 Usage")
     usage = st.session_state.usage_tracker.get_monthly_usage()
     for limit_name, limit_value in tier.limits.items():
         if limit_value == float("inf") or limit_value == 0:
-            st.sidebar.write(
-                f"✨ {limit_name.replace('_', ' ').title()}: Unlimited"
-            )
+            st.sidebar.write(f"✨ {limit_name.replace('_', ' ').title()}: Unlimited")
         else:
             current_value = usage.get(limit_name, 0)
             progress = min(1.0, current_value / max(1, limit_value))
-            st.sidebar.write(
-                limit_name.replace('_', ' ').title()
-            )
+            st.sidebar.write(limit_name.replace("_", " ").title())
             st.sidebar.progress(progress)
-            st.sidebar.write(
-                f"{current_value:,} / {limit_value:,}"
-            )
+            st.sidebar.write(f"{current_value:,} / {limit_value:,}")
 
     # Features
     st.sidebar.markdown("### ✨ Features")
     with st.sidebar.expander("Available Features", expanded=False):
         feature_categories = [
-            "basic", "code_intelligence",
-            "security", "testing",
-            "performance", "collaboration",
-            "project", "devops",
-            "ai_workflow"
+            "basic",
+            "code_intelligence",
+            "security",
+            "testing",
+            "performance",
+            "collaboration",
+            "project",
+            "devops",
+            "ai_workflow",
         ]
         for category in feature_categories:
             category_features = PricingManager.FEATURES.get(category, [])
-            available_features = [
-                f for f in category_features
-                if f["name"] in [
-                    feat["name"]
-                    for feat in tier.features
-                ]
-            ]
+            available_features = [f for f in category_features if f["name"] in [feat["name"] for feat in tier.features]]
             if available_features:
-                st.sidebar.markdown(
-                    f"**{category.replace('_', ' ').title()}**"
-                )
+                st.sidebar.markdown(f"**{category.replace('_', ' ').title()}**")
                 for feature in available_features:
                     st.sidebar.markdown(
                         f"""
@@ -213,7 +189,7 @@ def display_sidebar():
                         </p>
                     </div>
                     """,
-                        unsafe_allow_html=True
+                        unsafe_allow_html=True,
                     )
 
 
@@ -227,8 +203,7 @@ def main():
 
     # Page title and description
     st.title("AI Coder: Your Intelligent Code Companion")
-    st.write("Generate, analyze, and refactor code "
-             "with advanced AI-powered assistance.")
+    st.write("Generate, analyze, and refactor code " "with advanced AI-powered assistance.")
 
     # Main chat area
     st.markdown('<div style="margin-bottom: 100px">', unsafe_allow_html=True)
@@ -283,8 +258,7 @@ def main():
 
     if submit and user_input:
         # Add user message
-        st.session_state.messages.append(
-            {"role": "user", "content": user_input})
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
         # Generate response
         try:
@@ -298,20 +272,16 @@ def main():
 
             # Process the request
             if "generate" in user_input.lower() or "create" in user_input.lower():
-                response = st.session_state.code_generator.generate_code(
-                    user_input)
+                response = st.session_state.code_generator.generate_code(user_input)
             elif "analyze" in user_input.lower() or "review" in user_input.lower():
-                response = st.session_state.code_analyzer.analyze_code(
-                    user_input)
+                response = st.session_state.code_analyzer.analyze_code(user_input)
             elif "refactor" in user_input.lower() or "improve" in user_input.lower():
-                response = st.session_state.code_refactor.refactor_code(
-                    user_input)
+                response = st.session_state.code_refactor.refactor_code(user_input)
             else:
                 response = st.session_state.code_generator.chat(user_input)
 
             # Add assistant message
-            st.session_state.messages.append(
-                {"role": "assistant", "content": response})
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
             # Track analytics
             st.session_state.analytics.track_event(
