@@ -129,7 +129,10 @@ class DBSchemaGenerator(BaseService):
                     if col_def.get("primary_key", False):
                         primary_key = col_name
                     
-                    columns.append(f"{col_name} {col_type} {' '.join(constraints)}")
+                    column_def = f"{col_name} {col_type}"
+                    if constraints:
+                        column_def += f" {' '.join(constraints)}"
+                    columns.append(column_def)
                 
                 if primary_key:
                     columns.append(f"PRIMARY KEY ({primary_key})")
@@ -137,16 +140,18 @@ class DBSchemaGenerator(BaseService):
                 # Add foreign key constraints
                 for rel in schema.get("relationships", []):
                     if rel["from_table"] == table_name:
-                        foreign_keys.append(
+                        foreign_key = (
                             f"FOREIGN KEY ({rel['from_column']}) REFERENCES "
                             f"{rel['to_table']}({rel['to_column']})"
                         )
+                        foreign_keys.append(foreign_key)
                 
-                create_table = f"""
-                CREATE TABLE {table_name} (
-                    {',\n    '.join(columns + foreign_keys)}
-                );"""
-                
+                # Create table statement
+                create_table = (
+                    f"CREATE TABLE {table_name} (\n"
+                    f"    {',\n    '.join(columns + foreign_keys)}\n"
+                    f");"
+                )
                 sql_statements.append(create_table)
             
             # Create indexes
@@ -155,7 +160,6 @@ class DBSchemaGenerator(BaseService):
                     f"CREATE INDEX idx_{index['table']}_{index['column']} "
                     f"ON {index['table']} ({index['column']});"
                 )
-                
                 sql_statements.append(create_index)
             
             # Insert sample data
@@ -164,10 +168,10 @@ class DBSchemaGenerator(BaseService):
                     for record in records:
                         columns = ", ".join(record.keys())
                         values = ", ".join(f"'{str(v)}'" for v in record.values())
-                        insert = f"""
-                        INSERT INTO {table_name} ({columns})
-                        VALUES ({values});"""
-                        
+                        insert = (
+                            f"INSERT INTO {table_name} ({columns}) "
+                            f"VALUES ({values});"
+                        )
                         sql_statements.append(insert)
             
             return "\n\n".join(sql_statements)
@@ -182,24 +186,23 @@ class DBSchemaGenerator(BaseService):
             if orm_type not in ["sqlalchemy", "django", "mongoose"]:
                 raise ValueError(f"Unsupported ORM type: {orm_type}")
             
-            prompt = f"""Generate {orm_type} ORM models for this schema:
-            
-            {json.dumps(schema, indent=2)}
-            
-            Please provide:
-            1. Model definitions
-            2. Relationships and foreign keys
-            3. Validation rules
-            4. Indexes and constraints
-            
-            Format as proper Python/JavaScript code based on the ORM.
-            """
+            prompt = (
+                f"Generate {orm_type} ORM models for this schema:\n\n"
+                f"{json.dumps(schema, indent=2)}\n\n"
+                "Please provide:\n"
+                "1. Model definitions\n"
+                "2. Relationships and foreign keys\n"
+                "3. Validation rules\n"
+                "4. Indexes and constraints\n\n"
+                "Format as proper Python/JavaScript code based on the ORM."
+            )
             
             result = self._get_llm_suggestions(prompt)
             
             return {
                 "models": result["code"],
-                "orm_type": orm_type
+                "suggestions": result.get("suggestions", []),
+                "warnings": result.get("warnings", [])
             }
             
         except Exception as e:
