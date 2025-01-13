@@ -1,6 +1,6 @@
 {
     "model_name": "ai-coder-v1",
-    "model_type": "ai-coder-v1",
+    "model_type": "llama",
     "vocab_size": 100000,
     "n_positions": 32768,
     "n_ctx": 32768,
@@ -26,7 +26,7 @@
         "attention_dropout": 0.1
     },
     "architectures": [
-        "AiCoderForCausalLM"
+        "LlamaForCausalLM"
     ],
     "tokenizer_class": "CodeTokenizer",
     "tie_word_embeddings": true,

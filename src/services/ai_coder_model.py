@@ -5,14 +5,12 @@ import logging
 import torch
 import torch.nn as nn
 from typing import Optional, Dict, Any
-from transformers import PreTrainedModel, PreTrainedTokenizer, AutoTokenizer
+from transformers import PreTrainedModel, PreTrainedTokenizer, AutoTokenizer, AutoModelForCausalLM
 
 # Add project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
-from src.models.ai_coder_v1.model import AiCoderConfig, AiCoderForCausalLM
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -28,7 +26,12 @@ class ModelConfig:
         self.num_return_sequences = 1
         self.do_sample = True
 
-class AiCoderModel:
+class ModelProvider:
+    """Base class for model providers."""
+    def generate(self, prompt: str, **kwargs) -> str:
+        raise NotImplementedError
+
+class AiCoderModel(ModelProvider):
     """AI Coder model implementation."""
     
     def __init__(self, model_path: Optional[str] = None):
@@ -64,17 +67,35 @@ class AiCoderModel:
     def _load_model(self) -> PreTrainedModel:
         """Load and configure the model with optimizations."""
         try:
-            config_path = os.path.join(self.model_path, "config.json")
-            if not os.path.exists(config_path):
-                raise ValueError(f"Config file not found at {config_path}")
+            model_path = os.path.join(self.model_path)
+            if not os.path.exists(model_path):
+                raise ValueError(f"Model path not found: {model_path}")
             
-            config = AiCoderConfig.from_json_file(config_path)
-            config.use_cache = True
-            config.gradient_checkpointing = True
-            config.use_memory_efficient_attention = True
+            # Try loading with AutoModelForCausalLM first
+            try:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    trust_remote_code=True,
+                    use_cache=True
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load with AutoModelForCausalLM: {str(e)}")
+                # Fallback to CodeLlama model
+                model = AutoModelForCausalLM.from_pretrained(
+                    "codellama/CodeLlama-7b-Python",
+                    trust_remote_code=True,
+                    use_cache=True
+                )
+                # Save it locally for future use
+                model.save_pretrained(model_path)
             
-            # Initialize model directly since we don't have pretrained weights yet
-            model = AiCoderForCausalLM(config)
+            # Enable model optimizations
+            if hasattr(model.config, "use_cache"):
+                model.config.use_cache = True
+            if hasattr(model.config, "gradient_checkpointing"):
+                model.config.gradient_checkpointing = True
+            if hasattr(model.config, "use_memory_efficient_attention"):
+                model.config.use_memory_efficient_attention = True
             
             # Enable model parallelism if multiple GPUs are available
             if torch.cuda.device_count() > 1:
