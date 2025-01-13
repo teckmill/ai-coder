@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.base_service import BaseService
-from src.services.code_generator import CodeGenerator, FREE_MODELS, PREMIUM_MODELS
+from src.services.code_generator import CodeGenerator
 from src.services.code_analyzer import CodeAnalyzer
 from src.services.template_manager import TemplateManager
 from src.services.project_generator import ProjectGenerator
@@ -20,6 +20,10 @@ from src.services.db_schema_generator import DBSchemaGenerator
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Define available models
+FREE_MODELS = ["codellama", "llama2", "mistral"]
+PREMIUM_MODELS = ["gpt-4", "gpt-3.5-turbo", "claude-2"]
 
 # Initialize session state for storing API key and model selection
 if 'api_key' not in st.session_state:

@@ -13,10 +13,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Define available models
-FREE_MODELS = ["codellama", "llama2", "mistral"]
-PREMIUM_MODELS = ["gpt-4", "gpt-3.5-turbo", "claude-2"]
-
 class CodeGenerator(BaseService):
     """Service for generating code based on natural language descriptions."""
     
@@ -32,23 +28,23 @@ class CodeGenerator(BaseService):
         try:
             logger.debug(f"Initializing model {self.model_name} (api_key_present={bool(self.api_key)})")
             
-            if self.model_name in FREE_MODELS:
-                logger.debug("Using free model with Ollama")
-                self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
-                self.model_available = True
-            elif self.model_name in PREMIUM_MODELS:
+            # Check if model requires API key
+            requires_api_key = any(name in self.model_name for name in ["gpt", "claude"])
+            
+            if requires_api_key:
                 if not self.api_key:
                     logger.error("API key required but not provided")
-                    raise ValueError(f"API key required for premium model {self.model_name}")
-                logger.debug("Using premium model with API key")
+                    raise ValueError(f"API key required for model {self.model_name}")
+                logger.debug("Using model with API key")
                 if "gpt" in self.model_name:
                     self.llm = ChatOpenAI(model_name=self.model_name, temperature=0.1, 
                                         api_key=self.api_key)
                     self.model_available = True
                 # Add support for other premium models here
             else:
-                logger.error(f"Model {self.model_name} not found in FREE_MODELS or PREMIUM_MODELS")
-                raise ValueError(f"Unsupported model: {self.model_name}")
+                logger.debug("Using model with Ollama")
+                self.llm = Ollama(model=self.model_name, temperature=0.1, timeout=120)
+                self.model_available = True
             
             logger.debug(f"Successfully initialized {self.model_name} model")
         except Exception as e:
@@ -60,8 +56,8 @@ class CodeGenerator(BaseService):
     def get_model_types(cls) -> Dict[str, list]:
         """Get the available model types and their corresponding models."""
         return {
-            "Free": FREE_MODELS,
-            "Premium": PREMIUM_MODELS
+            "Free": ["codellama", "llama2", "mistral"],
+            "Premium": ["gpt-4", "gpt-3.5-turbo", "claude-2"]
         }
 
     async def generate(self, prompt: str, language: str = "python") -> Dict:
