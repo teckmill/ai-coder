@@ -156,10 +156,10 @@ class DBSchemaGenerator(BaseService):
             
             # Create indexes
             for index in schema.get("indexes", []):
-                create_index = (
-                    f"CREATE INDEX idx_{index['table']}_{index['column']} "
-                    f"ON {index['table']} ({index['column']});"
-                )
+                table_name = index['table']
+                column_name = index['column']
+                index_name = f"idx_{table_name}_{column_name}"
+                create_index = f"CREATE INDEX {index_name} ON {table_name} ({column_name});"
                 sql_statements.append(create_index)
             
             # Insert sample data
@@ -167,11 +167,8 @@ class DBSchemaGenerator(BaseService):
                 for table_name, records in schema["sample_data"].items():
                     for record in records:
                         columns = ", ".join(record.keys())
-                        values = ", ".join(f"'{str(v)}'" for v in record.values())
-                        insert = (
-                            f"INSERT INTO {table_name} ({columns}) "
-                            f"VALUES ({values});"
-                        )
+                        placeholders = ", ".join(f"'{str(v)}'" for v in record.values())
+                        insert = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders});"
                         sql_statements.append(insert)
             
             return "\n\n".join(sql_statements)
