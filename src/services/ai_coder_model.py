@@ -58,7 +58,11 @@ class AiCoderModel:
     """
     
     def __init__(self, model_path: Optional[str] = None):
-        """Initialize the AI Coder model."""
+        """Initialize the AI Coder model.
+        
+        Args:
+            model_path: Path to model files. If None, uses default path.
+        """
         self.config = ModelConfig()
         self.model_path = model_path or self._get_default_model_path()
         self.device = self._setup_device()
@@ -271,11 +275,21 @@ class AiCoderModel:
     def _load_tokenizer(self) -> PreTrainedTokenizer:
         """Load and configure the tokenizer."""
         try:
-            tokenizer = AutoTokenizer.from_pretrained(
-                self.model_path,
-                trust_remote_code=True,
-                padding_side="left"
-            )
+            from transformers import PreTrainedTokenizer, AutoTokenizer
+            
+            # First try loading from local path
+            tokenizer_path = os.path.join(self.model_path, "tokenizer")
+            if os.path.exists(tokenizer_path):
+                tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+            else:
+                # If no local tokenizer, use CodeLlama's tokenizer as base
+                tokenizer = AutoTokenizer.from_pretrained(
+                    "codellama/CodeLlama-7b-Python",
+                    trust_remote_code=True,
+                    padding_side="left"
+                )
+                # Save it locally for future use
+                tokenizer.save_pretrained(tokenizer_path)
             
             # Add special tokens for code
             special_tokens = {

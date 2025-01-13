@@ -148,7 +148,8 @@ class CodeGenerator(BaseService):
         elif provider_class == AnthropicProvider:
             return provider_class(api_key=self.api_key, model=self.model_name)
         elif provider_class == AiCoderModel:
-            return provider_class()
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "ai_coder_v1")
+            return provider_class(model_path=model_path)
         
         raise ValueError(f"Unknown provider for model: {self.model_name}")
 
