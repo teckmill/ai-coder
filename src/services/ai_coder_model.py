@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from transformers import (
     AutoTokenizer, 
-    AutoModelForCausalLM,
     PreTrainedModel,
     PreTrainedTokenizer,
     AutoConfig
@@ -228,23 +227,35 @@ class AiCoderModel:
     
     def _get_default_model_path(self) -> str:
         """Get the default path for model weights."""
-        return "src/models/ai-coder-v1"  # Use our custom model
+        import os
+        return os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "ai-coder-v1")
     
     def _load_model(self) -> PreTrainedModel:
         """Load and configure the model with optimizations."""
         try:
-            config = AiCoderConfig.from_pretrained(self.model_path)
+            import sys
+            import os
+            
+            # Add models directory to Python path
+            models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+            if models_dir not in sys.path:
+                sys.path.append(models_dir)
+            
+            from ai_coder_v1.model import AiCoderConfig, AiCoderForCausalLM
+            
+            config_path = os.path.join(self.model_path, "config.json")
+            model_path = os.path.join(self.model_path, "model.py")
+            
+            if not os.path.exists(config_path) or not os.path.exists(model_path):
+                raise ValueError(f"Model files not found at {self.model_path}")
+            
+            config = AiCoderConfig.from_json_file(config_path)
             config.use_cache = True
             config.gradient_checkpointing = True
             config.use_memory_efficient_attention = True
             
-            # Load the base model
-            model = AiCoderForCausalLM.from_pretrained(
-                self.model_path,
-                config=config,
-                torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto"
-            )
+            # Initialize model directly since we don't have pretrained weights yet
+            model = AiCoderForCausalLM(config)
             
             # Enable model parallelism if multiple GPUs are available
             if torch.cuda.device_count() > 1:
