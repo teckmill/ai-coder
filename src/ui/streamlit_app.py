@@ -50,10 +50,11 @@ def main():
         # Display features in a more organized way
         st.subheader("Features")
         for category in ['basic', 'code_intelligence', 'security', 'testing', 'performance', 'collaboration', 'project', 'devops', 'ai_workflow']:
-            features = [f for f in tier.features if f['category'] == category]
-            if features:
+            category_features = PricingManager.FEATURES.get(category, [])
+            available_features = [f for f in category_features if f['name'] in [feat['name'] for feat in tier.features]]
+            if available_features:
                 st.markdown(f"**{category.replace('_', ' ').title()}**")
-                for feature in features:
+                for feature in available_features:
                     st.write(f"{feature['icon']} {feature['name']}")
                     with st.expander("Learn more"):
                         st.write(feature['description'])
