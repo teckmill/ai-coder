@@ -7,8 +7,12 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
-                          PreTrainedTokenizer)
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+)
 
 # Add project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
